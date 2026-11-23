@@ -1,0 +1,23 @@
+[
+  {
+    "provider_payment_id": "sim-1001",
+    "e2e_id": "SIMC0ELSA0000000000001",
+    "amount_cents": 300,
+    "received_at": "2026-11-23T15:10:00+00:00",
+    "payer_cuit": "20000000001"
+  },
+  {
+    "provider_payment_id": "sim-1002",
+    "e2e_id": "SIMCOELSA0000000000002",
+    "amount_cents": 500,
+    "received_at": "2026-11-23T16:45:00+00:00",
+    "payer_cuit": null
+  },
+  {
+    "provider_payment_id": "sim-1003",
+    "e2e_id": "00000000-0000-4000-8000-000000000003",
+    "amount_cents": 1000,
+    "received_at": "2026-11-24T12:00:00+00:00",
+    "payer_cuit": "27000000002"
+  }
+]

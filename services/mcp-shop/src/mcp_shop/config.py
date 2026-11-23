@@ -1,0 +1,55 @@
+"""Settings read from the environment (see docs/contracts.md, "Environment variables")."""
+
+import os
+from dataclasses import dataclass
+from datetime import timedelta
+from pathlib import Path
+from typing import Literal
+
+type TransferVerifierName = Literal["mercadopago", "simulated"]
+
+
+@dataclass(frozen=True)
+class Settings:
+    project: str | None
+    location: str
+    shop_database: str
+    media_bucket: str
+    transfer_verifier: TransferVerifierName
+    mp_access_token: str | None
+    mp_collector_id: str | None
+    simulated_transfers_path: Path | None
+    order_created_topic: str
+    extraction_model: str
+    credit_limit_cents: int
+    match_window: timedelta
+    port: int
+
+    @classmethod
+    def from_env(cls) -> "Settings":
+        simulated_path = os.environ.get("SIMULATED_TRANSFERS_PATH")
+        return cls(
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            shop_database=os.environ.get("FIRESTORE_SHOP_DB", "shop"),
+            media_bucket=os.environ["MEDIA_BUCKET"],
+            transfer_verifier=_transfer_verifier(
+                os.environ.get("TRANSFER_VERIFIER", "mercadopago")
+            ),
+            mp_access_token=os.environ.get("MP_ACCESS_TOKEN"),
+            mp_collector_id=os.environ.get("MP_COLLECTOR_ID"),
+            simulated_transfers_path=Path(simulated_path) if simulated_path else None,
+            order_created_topic=os.environ["ORDER_CREATED_TOPIC"],
+            extraction_model=os.environ.get("EXTRACTION_MODEL", "gemini-2.5-flash"),
+            credit_limit_cents=int(os.environ.get("CREDIT_LIMIT_CENTS", "1000")),
+            match_window=timedelta(minutes=int(os.environ.get("MATCH_WINDOW_MINUTES", "120"))),
+            port=int(os.environ.get("PORT", "8080")),
+        )
+
+
+def _transfer_verifier(value: str) -> TransferVerifierName:
+    if value == "mercadopago":
+        return "mercadopago"
+    if value == "simulated":
+        return "simulated"
+    raise ValueError(f"TRANSFER_VERIFIER must be mercadopago or simulated, got {value!r}")

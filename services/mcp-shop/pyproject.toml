@@ -1,0 +1,26 @@
+[project]
+name = "mcp-shop"
+version = "0.1.0"
+description = "MCP server with the shop's domain tools: orders on credit and receipt verification."
+requires-python = ">=3.12"
+dependencies = [
+    "shared",
+    "mcp>=2.3,<3",
+    "uvicorn>=0.30",
+    "pydantic>=2.9",
+    "httpx>=0.28",
+    "google-genai>=1.20",
+    "google-cloud-firestore>=2.20",
+    "google-cloud-storage>=2.18",
+    "tzdata>=2024.1",
+]
+
+[tool.uv.sources]
+shared = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_shop"]
