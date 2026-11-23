@@ -1,0 +1,25 @@
+[project]
+name = "main-worker"
+version = "0.1.0"
+description = "Private Pub/Sub push worker: runs agent turns and relays replies and deliveries to WhatsApp."
+requires-python = ">=3.12"
+dependencies = [
+    "shared",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "google-cloud-firestore>=2.19",
+    "google-cloud-storage>=2.18",
+    "google-cloud-aiplatform[agent_engines]>=1.112",
+    "google-adk>=1.10",
+]
+
+[tool.uv.sources]
+shared = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["main_worker"]
