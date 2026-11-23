@@ -1,0 +1,30 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Never commit real values.
+
+project_id = "<PROJECT_ID>"
+region     = "us-central1"
+
+# First apply: true. Switch to false once images are pushed and secrets have values.
+use_placeholder_images = true
+image_tag              = "latest"
+
+# Filled after the agent is deployed (printed by agent/deploy.py).
+agent_resource_name = ""
+
+# WhatsApp (Meta app dashboard > WhatsApp > API Setup).
+wa_phone_number_id = "<WA_PHONE_NUMBER_ID>"
+
+# Mercado Pago: numeric user id of the collecting account.
+mp_collector_id   = "<MP_COLLECTOR_ID>"
+transfer_verifier = "mercadopago" # or "simulated"
+
+# Identity Platform Google provider (OAuth web client created in the console).
+google_oauth_client_id     = "<OAUTH_CLIENT_ID>.apps.googleusercontent.com"
+google_oauth_client_secret = "<OAUTH_CLIENT_SECRET>"
+
+# Repository whose main branch may deploy through Workload Identity Federation.
+github_repository = "<OWNER>/agente-pagos-pd"
+
+# Optional budget. Leave empty to skip.
+billing_account_id = ""
+budget_amount      = 20
+budget_currency    = "USD"
