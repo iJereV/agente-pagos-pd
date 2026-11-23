@@ -1,0 +1,136 @@
+name: Deploy
+
+# Runs only on main. The Workload Identity provider also rejects tokens from any
+# other repository or branch, so a dispatch from another branch fails at auth.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/agente-pagos
+
+jobs:
+  images:
+    name: Image ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [wa-webhook, main-worker, mcp-shop, image-generator, link-web]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Docker auth for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Built from the repo root so images can copy libs/shared (docs/contracts.md).
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    name: Terraform and agent
+    needs: images
+    runs-on: ubuntu-latest
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      # Must match the values used for local applies, or CI will revert them.
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_github_repository: ${{ github.repository }}
+      TF_VAR_wa_phone_number_id: ${{ vars.WA_PHONE_NUMBER_ID }}
+      TF_VAR_mp_collector_id: ${{ vars.MP_COLLECTOR_ID }}
+      TF_VAR_transfer_verifier: ${{ vars.TRANSFER_VERIFIER || 'mercadopago' }}
+      TF_VAR_agent_resource_name: ${{ vars.AGENT_RESOURCE_NAME }}
+      TF_VAR_google_oauth_client_id: ${{ vars.GOOGLE_OAUTH_CLIENT_ID }}
+      TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      TF_VAR_billing_account_id: ${{ vars.BILLING_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.17.2"
+          terraform_wrapper: false
+
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: "0.13.9"
+          enable-cache: true
+
+      - name: Terraform init
+        working-directory: infra/terraform
+        run: terraform init -backend-config="bucket=${PROJECT_ID}-tfstate"
+
+      - name: Terraform apply
+        working-directory: infra/terraform
+        run: |
+          terraform apply -auto-approve \
+            -var "image_tag=${GITHUB_SHA}" \
+            -var "use_placeholder_images=false"
+
+      - name: Deploy agent
+        id: agent
+        run: |
+          cd infra/terraform
+          export MCP_SHOP_URL="$(terraform output -raw mcp_shop_url)"
+          export AGENT_SERVICE_ACCOUNT="$(terraform output -json service_account_emails | jq -r '."sa-agent"')"
+          export AGENT_STAGING_BUCKET="gs://$(terraform output -raw agent_staging_bucket)"
+          cd "$GITHUB_WORKSPACE"
+          export GOOGLE_CLOUD_PROJECT="$PROJECT_ID"
+          export GOOGLE_CLOUD_LOCATION="$REGION"
+          export AGENT_RESOURCE_NAME="$TF_VAR_agent_resource_name"
+          uv sync --all-packages --locked
+          # deploy.py prints the Agent Runtime resource name as its last line.
+          uv run python agent/deploy.py | tee agent-deploy.log
+          name="$(grep -v '^[[:space:]]*$' agent-deploy.log | tail -n 1 | tr -d '[:space:]')"
+          case "$name" in
+            projects/*/reasoningEngines/*) ;;
+            *) echo "::error::agent/deploy.py did not print a resource name"; exit 1 ;;
+          esac
+          echo "resource_name=$name" >> "$GITHUB_OUTPUT"
+
+      # First deployment (or a recreated agent): point main-worker at it now and
+      # ask for the repository variable to be updated so later runs keep it.
+      - name: Wire main-worker to a new agent
+        if: steps.agent.outputs.resource_name != vars.AGENT_RESOURCE_NAME
+        working-directory: infra/terraform
+        env:
+          TF_VAR_agent_resource_name: ${{ steps.agent.outputs.resource_name }}
+        run: |
+          terraform apply -auto-approve \
+            -var "image_tag=${GITHUB_SHA}" \
+            -var "use_placeholder_images=false"
+          echo "::notice::Set the AGENT_RESOURCE_NAME repository variable to ${TF_VAR_agent_resource_name}"
