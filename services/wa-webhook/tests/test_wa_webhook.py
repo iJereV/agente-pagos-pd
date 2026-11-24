@@ -144,6 +144,30 @@ def test_statuses_are_ignored(client: TestClient, published: list) -> None:
     assert published == []
 
 
+def test_failed_status_is_logged_without_recipient(
+    client: TestClient, published: list, caplog: pytest.LogCaptureFixture
+) -> None:
+    statuses = {
+        "messaging_product": "whatsapp",
+        "metadata": {"phone_number_id": "PNID_TEST"},
+        "statuses": [
+            {
+                "id": "wamid.OUT",
+                "status": "failed",
+                "recipient_id": WA_ID,
+                "errors": [{"code": 131026, "title": "Message undeliverable"}],
+            }
+        ],
+    }
+
+    assert post(client, notification(statuses)).status_code == 200
+    assert published == []
+    [record] = [r for r in caplog.records if r.getMessage() == "outbound message failed"]
+    assert record.error_code == 131026
+    assert record.wamid == "wamid.OUT"
+    assert WA_ID not in str(vars(record))
+
+
 def test_invalid_json_with_valid_signature_is_rejected(client: TestClient) -> None:
     body = b"not json"
     response = client.post("/webhook", content=body, headers={"X-Hub-Signature-256": sign(body)})

@@ -11,7 +11,7 @@ from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import PlainTextResponse
 from starlette.concurrency import run_in_threadpool
 
-from wa_webhook.messages import extract_customer_messages
+from wa_webhook.messages import extract_customer_messages, failed_deliveries
 from wa_webhook.signature import is_valid_signature
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,8 @@ def create_app(settings: Settings, publish: Publish) -> FastAPI:
             # Blocking publish off the event loop; a failure returns 500 and Meta retries.
             await run_in_threadpool(publish, event)
         logger.info("enqueued webhook messages", extra={"count": len(events)})
+        for failure in failed_deliveries(payload):
+            logger.warning("outbound message failed", extra=failure)
         return Response(status_code=200)
 
     return app
