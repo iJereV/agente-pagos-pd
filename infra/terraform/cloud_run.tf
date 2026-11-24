@@ -59,16 +59,17 @@ locals {
       max_instances   = 3
       health_path     = "/health"
       env = {
-        FIRESTORE_SHOP_DB    = google_firestore_database.this["shop"].name
-        MEDIA_BUCKET         = google_storage_bucket.media.name
-        TOKEN_SIGNER         = "iam"
-        TOKEN_ISSUER         = local.sa["sa-main-worker"]
-        MP_COLLECTOR_ID      = var.mp_collector_id
-        TRANSFER_VERIFIER    = var.transfer_verifier
-        ORDER_CREATED_TOPIC  = google_pubsub_topic.this["order-created"].name
-        EXTRACTION_MODEL     = var.extraction_model
-        CREDIT_LIMIT_CENTS   = tostring(var.credit_limit_cents)
-        MATCH_WINDOW_MINUTES = tostring(var.match_window_minutes)
+        FIRESTORE_SHOP_DB         = google_firestore_database.this["shop"].name
+        MEDIA_BUCKET              = google_storage_bucket.media.name
+        TOKEN_SIGNER              = "iam"
+        TOKEN_ISSUER              = local.sa["sa-main-worker"]
+        MP_COLLECTOR_ID           = var.mp_collector_id
+        TRANSFER_VERIFIER         = var.transfer_verifier
+        ORDER_CREATED_TOPIC       = google_pubsub_topic.this["order-created"].name
+        EXTRACTION_MODEL          = var.extraction_model
+        EXTRACTION_MODEL_LOCATION = var.extraction_model_location
+        CREDIT_LIMIT_CENTS        = tostring(var.credit_limit_cents)
+        MATCH_WINDOW_MINUTES      = tostring(var.match_window_minutes)
       }
       secrets = ["mp-access-token"]
     }
@@ -184,6 +185,12 @@ resource "google_cloud_run_v2_service" "this" {
         }
       }
     }
+  }
+
+  # Service-level `scaling` (not template.scaling) is filled in by the API with its
+  # defaults (manual/min instance count 0); without this every plan shows a diff.
+  lifecycle {
+    ignore_changes = [scaling]
   }
 
   depends_on = [

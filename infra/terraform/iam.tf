@@ -4,7 +4,8 @@
 #   sa-wa-webhook       publish wa-inbound; Meta app secret + verify token   (secrets.tf)
 #   sa-main-worker      Firestore channel; Storage read orders/, write receipts/;
 #                       Meta access token; Agent Runtime; signJwt as itself
-#   sa-agent            Gemini on Vertex AI; invoke mcp-shop                  (cloud_run.tf)
+#   sa-agent            Gemini on Vertex AI; invoke mcp-shop                  (cloud_run.tf);
+#                       write its own logs, traces and metrics (Agent Runtime telemetry)
 #   sa-mcp-shop         Firestore shop; MP token; publish order-created; Gemini;
 #                       Storage read receipts/
 #   sa-image-generator  image model; Storage write orders/; publish order-ready
@@ -52,6 +53,30 @@ resource "google_project_iam_member" "vertex_user" {
   project = var.project_id
   role    = "roles/aiplatform.user"
   member  = "serviceAccount:${local.sa[each.value]}"
+}
+
+# --- Agent telemetry ----------------------------------------------------------------
+# Agent Runtime exports the agent's logs, traces and metrics as the agent's own
+# identity (sa-agent). Cloud Run services get this from the platform; the agent does
+# not, so without these grants every export fails with 403.
+
+locals {
+  agent_telemetry_roles = toset([
+    "roles/cloudtrace.agent",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+  ])
+}
+
+resource "google_project_iam_member" "agent_telemetry" {
+  for_each = local.agent_telemetry_roles
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${local.sa["sa-agent"]}"
+
+  # When CI applies, its projectIamAdmin condition must list these roles first.
+  depends_on = [google_project_iam_member.ci_deployer_iam_admin]
 }
 
 # --- Cloud Storage: one prefix per access pattern --------------------------------

@@ -10,6 +10,11 @@ resource "google_identity_platform_config" "this" {
     trimprefix(google_cloud_run_v2_service.this["link-web"].uri, "https://"),
   ])
 
+  # The API returns this block with its default; declaring it avoids a perpetual diff.
+  multi_tenant {
+    allow_tenants = false
+  }
+
   depends_on = [google_project_service.this]
 }
 

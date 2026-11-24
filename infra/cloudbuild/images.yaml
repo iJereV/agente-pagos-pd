@@ -1,0 +1,39 @@
+# Builds and pushes the five service images with Cloud Build, for machines without Docker.
+# Usage (from the repo root):
+#   gcloud builds submit --config infra/cloudbuild/images.yaml --substitutions=_TAG=$(git rev-parse --short HEAD) .
+substitutions:
+  _REGISTRY: us-central1-docker.pkg.dev/${PROJECT_ID}/agente-pagos
+  _TAG: latest
+
+steps:
+  - id: wa-webhook
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "services/wa-webhook/Dockerfile", "-t", "${_REGISTRY}/wa-webhook:${_TAG}", "."]
+    waitFor: ["-"]
+  - id: main-worker
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "services/main-worker/Dockerfile", "-t", "${_REGISTRY}/main-worker:${_TAG}", "."]
+    waitFor: ["-"]
+  - id: mcp-shop
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "services/mcp-shop/Dockerfile", "-t", "${_REGISTRY}/mcp-shop:${_TAG}", "."]
+    waitFor: ["-"]
+  - id: image-generator
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "services/image-generator/Dockerfile", "-t", "${_REGISTRY}/image-generator:${_TAG}", "."]
+    waitFor: ["-"]
+  - id: link-web
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "services/link-web/Dockerfile", "-t", "${_REGISTRY}/link-web:${_TAG}", "."]
+    waitFor: ["-"]
+
+images:
+  - ${_REGISTRY}/wa-webhook:${_TAG}
+  - ${_REGISTRY}/main-worker:${_TAG}
+  - ${_REGISTRY}/mcp-shop:${_TAG}
+  - ${_REGISTRY}/image-generator:${_TAG}
+  - ${_REGISTRY}/link-web:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true # lets _REGISTRY expand ${PROJECT_ID}

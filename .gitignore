@@ -20,3 +20,5 @@ terraform.tfvars
 
 # Local data
 *.local.json
+tfplan
+*.tfplan

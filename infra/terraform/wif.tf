@@ -42,7 +42,7 @@ resource "google_service_account_iam_member" "ci_deployer_wif" {
 # so those are covered by a custom role with metadata-only permissions.
 
 resource "google_project_iam_custom_role" "ci_infra_manager" {
-  role_id     = "ciInfraManager"
+  role_id     = local.ci_infra_manager_role_id
   title       = "CI infrastructure manager"
   description = "Manage secrets, Firestore databases, buckets, topics and subscriptions without reading their data."
 
@@ -105,6 +105,8 @@ resource "google_project_iam_custom_role" "ci_infra_manager" {
 }
 
 locals {
+  ci_infra_manager_role_id = "ciInfraManager"
+
   deployer_project_roles = toset([
     "roles/aiplatform.user",                # deploy and update the agent on Agent Runtime
     "roles/artifactregistry.admin",         # manage the repository and push images
@@ -115,7 +117,8 @@ locals {
     "roles/run.admin",                      # deploy Cloud Run services
     "roles/serviceusage.apiKeysAdmin",      # manage the link-web browser key
     "roles/serviceusage.serviceUsageAdmin", # enable APIs
-    google_project_iam_custom_role.ci_infra_manager.name,
+    # Built from static values so for_each keys are known at plan time.
+    "projects/${var.project_id}/roles/${local.ci_infra_manager_role_id}",
   ])
 
   # Project-level roles this configuration grants. CI may add or remove these
@@ -123,6 +126,7 @@ locals {
   grantable_project_roles = setunion(
     local.deployer_project_roles,
     ["roles/datastore.user"],
+    local.agent_telemetry_roles,
   )
 }
 
@@ -132,6 +136,8 @@ resource "google_project_iam_member" "ci_deployer" {
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${local.sa["sa-ci-deployer"]}"
+
+  depends_on = [google_project_iam_custom_role.ci_infra_manager]
 }
 
 # Project IAM is managed by Terraform, so CI needs projectIamAdmin. The condition
@@ -145,7 +151,12 @@ resource "google_project_iam_member" "ci_deployer_iam_admin" {
   condition {
     title       = "only-managed-roles"
     description = "Grant or revoke only the project roles managed by this configuration."
-    expression  = "api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', []).hasOnly([${join(", ", [for role in sort(tolist(local.grantable_project_roles)) : "'${role}'"])}])"
+    # IAM conditions allow at most 10 elements per hasOnly() list, so the roles
+    # are split into chunks. Each change touches one role, so OR-ing is enough.
+    expression = join(" || ", [
+      for chunk in chunklist(sort(tolist(local.grantable_project_roles)), 10) :
+      "api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', []).hasOnly([${join(", ", [for role in chunk : "'${role}'"])}])"
+    ])
   }
 }
 

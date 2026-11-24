@@ -111,7 +111,13 @@ variable "auth_fresh_hours" {
 variable "extraction_model" {
   description = "Gemini model used by mcp-shop to extract receipt fields."
   type        = string
-  default     = "gemini-2.5-flash"
+  default     = "gemini-3.5-flash"
+}
+
+variable "extraction_model_location" {
+  description = "Vertex AI location where the extraction model is served."
+  type        = string
+  default     = "global"
 }
 
 variable "image_model" {

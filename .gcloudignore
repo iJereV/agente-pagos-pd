@@ -1,0 +1,14 @@
+# Files never uploaded by `gcloud builds submit`.
+.git/
+.github/
+.env
+.env.*
+!.env.example
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+infra/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
