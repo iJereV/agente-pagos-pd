@@ -11,8 +11,13 @@ from mcp_shop.server import build_app
 def main() -> None:
     configure_json_logging()
     settings = Settings.from_env()
+    # No access log: request lines carry query strings, and Cloud Run logs requests.
     uvicorn.run(
-        build_app(build_shop(settings)), host="0.0.0.0", port=settings.port, log_config=None
+        build_app(build_shop(settings)),
+        host="0.0.0.0",
+        port=settings.port,
+        log_config=None,
+        access_log=False,
     )
 
 

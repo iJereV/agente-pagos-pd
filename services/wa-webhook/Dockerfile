@@ -15,4 +15,4 @@ RUN uv pip install --system --no-cache --no-sources ./libs/shared ./services/wa-
 RUN useradd --system --uid 10001 --no-create-home app
 USER app
 
-CMD ["sh", "-c", "exec uvicorn wa_webhook.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "exec uvicorn wa_webhook.main:app --host 0.0.0.0 --port ${PORT} --no-access-log"]
