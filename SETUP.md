@@ -262,7 +262,8 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 | `MP_COLLECTOR_ID` | mcp-shop | | numeric MP user id |
 | `TRANSFER_VERIFIER` | mcp-shop | | `mercadopago` or `simulated` |
 | `ORDER_CREATED_TOPIC` | mcp-shop | | `order-created` |
-| `EXTRACTION_MODEL` | mcp-shop | | `gemini-2.5-flash` |
+| `EXTRACTION_MODEL` | mcp-shop | | `gemini-3.5-flash` |
+| `EXTRACTION_MODEL_LOCATION` | mcp-shop | | `global` (where the extraction model is served) |
 | `CREDIT_LIMIT_CENTS` | mcp-shop | | `1000` |
 | `MATCH_WINDOW_MINUTES` | mcp-shop | | `120` |
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |
@@ -273,7 +274,9 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 | `IDENTITY_API_KEY` | link-web | | browser API key, public by design (created by Terraform) |
 | `IDENTITY_AUTH_DOMAIN` | link-web | | `<PROJECT_ID>.firebaseapp.com` |
 | `MCP_SHOP_URL` | agent | | `https://<mcp-shop>/mcp` |
-| `AGENT_MODEL` | agent | | `gemini-2.5-flash` |
+| `AGENT_MODEL` | agent | | `gemini-3.5-flash` |
+| `AGENT_MODEL_LOCATION` | agent | | `global` (where the agent model is served; the agent itself runs in `GOOGLE_CLOUD_LOCATION`) |
+| `MCP_TIMEOUT_SECONDS` | agent | | `30` (MCP session setup; covers mcp-shop cold starts) |
 
 ## Cost
 

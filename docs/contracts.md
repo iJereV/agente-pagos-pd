@@ -11,6 +11,7 @@ Single source of truth for everything that crosses a service boundary. Every ser
 - Timestamps are stored and compared in UTC (`datetime` with `tzinfo=UTC`, ISO 8601 in JSON).
 - Code, comments, logs and docs are in English. Customer-facing agent replies are in Spanish (Argentina), because the customers are Argentine.
 - Structured JSON logs to stdout (`{"severity": ..., "message": ..., ...}`) so Cloud Logging parses them.
+- No HTTP access logs from the apps (uvicorn runs with `--no-access-log` / `access_log=False`): request lines carry query strings with tokens (`hub.verify_token`, link `?t=`). Cloud Run's own request logs still record the full URL.
 - Tests with `pytest`. No real credentials or real personal data in fixtures: synthetic only.
 
 ## Repository layout
@@ -181,6 +182,7 @@ Verifiers read `TOKEN_SIGNER` (`iam` or `local`) and `TOKEN_ISSUER` (the main-wo
 - Rotation: new session when `now - last_activity > SESSION_IDLE_HOURS` (24).
 - State keys written by main-worker before each turn: `wa_id`, `customer_id`, `is_linked`, `auth_fresh`, `turn_token`. Written by the agent: `sign_in_requested` (bool, reset by main-worker after the turn).
 - Turn input: customer text as-is; images as `"[image received]"` plus any caption; documents as `"[document received]"`; other types as `"[unsupported message received]"`; system events as a single line `SYSTEM_EVENT {json}` with no customer ids, e.g. `SYSTEM_EVENT {"event":"sign_in_completed"}` and `SYSTEM_EVENT {"event":"order_ready","order_id":"ord_...","image_count":3}`. The agent replies with plain text only.
+- Failed turn: when the turn raises or returns no text, main-worker does not retry it (no second model call). A customer message gets the fixed reply `Perdón, tuve un problema para responderte. Probá de nuevo en un ratito.`; an `order_ready` delivery still sends the images, with the fixed caption `¡Listo! Acá tenés tus imágenes.`; other system events send nothing. Session errors before the turn are still retried through Pub/Sub.
 - Placeholder: when the agent wants a sign-in it calls `request_sign_in()` and writes `{{SIGN_IN_LINK}}` in its reply. main-worker replaces it with the link (or appends the link if missing).
 
 ## MCP server (`mcp-shop`)
@@ -274,7 +276,8 @@ Secrets come from Secret Manager, mounted as env vars by Cloud Run.
 | `MP_COLLECTOR_ID` | mcp-shop | | numeric MP user id of the shop account |
 | `TRANSFER_VERIFIER` | mcp-shop | | `mercadopago` or `simulated` |
 | `ORDER_CREATED_TOPIC` | mcp-shop | | |
-| `EXTRACTION_MODEL` | mcp-shop | | default `gemini-2.5-flash` |
+| `EXTRACTION_MODEL` | mcp-shop | | default `gemini-3.5-flash` |
+| `EXTRACTION_MODEL_LOCATION` | mcp-shop | | default `global` (where the extraction model is served) |
 | `CREDIT_LIMIT_CENTS` | mcp-shop | | default `1000` |
 | `MATCH_WINDOW_MINUTES` | mcp-shop | | default `120` |
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |
@@ -286,8 +289,10 @@ Secrets come from Secret Manager, mounted as env vars by Cloud Run.
 | `IDENTITY_API_KEY` | link-web | | Identity Platform web API key (public by design) |
 | `IDENTITY_AUTH_DOMAIN` | link-web | | `<project>.firebaseapp.com` |
 | `MCP_SHOP_URL` | agent | | `https://<mcp-shop>/mcp` |
-| `AGENT_MODEL` | agent | | default `gemini-2.5-flash` |
+| `AGENT_MODEL` | agent | | default `gemini-3.5-flash` |
+| `AGENT_MODEL_LOCATION` | agent | | default `global` (where the agent model is served; the agent runs in `GOOGLE_CLOUD_LOCATION`) |
+| `MCP_TIMEOUT_SECONDS` | agent | | default `30` (MCP session setup; covers mcp-shop cold starts) |
 
 ## Service accounts
 
-`sa-wa-webhook`, `sa-main-worker`, `sa-agent`, `sa-mcp-shop`, `sa-image-generator`, `sa-link-web`, `sa-pubsub-push`, `sa-ci-deployer`. Permissions as in the design plan's service account table; `sa-link-web` may also publish to `wa-inbound`.
+`sa-wa-webhook`, `sa-main-worker`, `sa-agent` (also `logging.logWriter`, `cloudtrace.agent`, `monitoring.metricWriter` for Agent Runtime telemetry), `sa-mcp-shop`, `sa-image-generator`, `sa-link-web`, `sa-pubsub-push`, `sa-ci-deployer`. Permissions as in the design plan's service account table; `sa-link-web` may also publish to `wa-inbound`.
