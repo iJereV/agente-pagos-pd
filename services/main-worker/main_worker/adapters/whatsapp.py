@@ -7,6 +7,19 @@ from main_worker.domain.models import MediaFile
 
 GRAPH_URL = "https://graph.facebook.com"
 
+# Inbound wa_ids for Argentine (549...) and Mexican (521...) mobiles carry an extra
+# digit that the Cloud API rejects as a recipient (error 131030); the number
+# without it reaches the same phone.
+_MOBILE_PREFIXES = {"549": "54", "521": "52"}
+
+
+def outbound_number(wa_id: str) -> str:
+    """Map an inbound wa_id to the form the Cloud API accepts as a recipient."""
+    for prefix, replacement in _MOBILE_PREFIXES.items():
+        if wa_id.startswith(prefix) and len(wa_id) == 13:
+            return replacement + wa_id[len(prefix) :]
+    return wa_id
+
 
 class GraphWhatsApp:
     def __init__(
@@ -51,7 +64,11 @@ class GraphWhatsApp:
         return MediaFile(data=content.content, mime_type=info.get("mime_type", ""))
 
     async def _send(self, to: str, message: dict) -> None:
-        payload = {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to}
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": outbound_number(to),
+        }
         await self._request("POST", f"/{self._phone_number_id}/messages", json=payload | message)
 
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
