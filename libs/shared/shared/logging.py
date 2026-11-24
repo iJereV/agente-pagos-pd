@@ -41,7 +41,15 @@ def setup_logging(level: int | str = logging.INFO) -> None:
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(level)
-    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    for name in ("uvicorn", "uvicorn.error"):
         logger = logging.getLogger(name)
         logger.handlers.clear()
         logger.propagate = True
+    # Access logs print full URLs, and some carry tokens (Meta's hub.verify_token,
+    # link tokens). Cloud Run already records requests, so drop them here. uvicorn
+    # decides whether to log access with hasHandlers(), so propagation must be off.
+    access = logging.getLogger("uvicorn.access")
+    access.handlers.clear()
+    access.propagate = False
+    # httpx logs every request URL at INFO; Meta media URLs are signed.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
