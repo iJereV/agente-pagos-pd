@@ -27,7 +27,10 @@ injection; otherwise `{{SIGN_IN_LINK}}` would be resolved as a state variable an
 
 ## Environment
 
-`MCP_SHOP_URL` (required at import), `AGENT_MODEL` (default `gemini-2.5-flash`).
+`MCP_SHOP_URL` (required at import), `AGENT_MODEL` (default `gemini-3.5-flash`),
+`AGENT_MODEL_LOCATION` (default `global`: the Vertex AI location the model is called in,
+independent of the region the agent runs in) and `MCP_TIMEOUT_SECONDS` (default `30`:
+MCP session setup, long enough for an mcp-shop cold start).
 
 ## Deploy
 
@@ -59,7 +62,7 @@ agents-cli scaffold enhance --from-adk-project      # writes agents-cli-manifest
 agents-cli deploy --deployment-target agent_runtime \
   --project my-project --region us-central1 \
   --service-account sa-agent@my-project.iam.gserviceaccount.com \
-  --env-vars MCP_SHOP_URL=https://mcp-shop-xxxx.a.run.app/mcp,AGENT_MODEL=gemini-2.5-flash
+  --env-vars MCP_SHOP_URL=https://mcp-shop-xxxx.a.run.app/mcp,AGENT_MODEL=gemini-3.5-flash,AGENT_MODEL_LOCATION=global
 ```
 
 Agents CLI deploys to Agent Runtime as a container that Agent Runtime builds from a

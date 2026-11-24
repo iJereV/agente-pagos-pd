@@ -86,7 +86,8 @@ integer cents.
 | `MP_COLLECTOR_ID` | | shop's MP user id; required for `mercadopago` |
 | `SIMULATED_TRANSFERS_PATH` | bundled fixture | JSON list of transfers for `simulated` |
 | `ORDER_CREATED_TOPIC` | | required |
-| `EXTRACTION_MODEL` | `gemini-2.5-flash` | |
+| `EXTRACTION_MODEL` | `gemini-3.5-flash` | |
+| `EXTRACTION_MODEL_LOCATION` | `global` | Vertex AI location of the extraction model |
 | `CREDIT_LIMIT_CENTS` | `1000` | |
 | `MATCH_WINDOW_MINUTES` | `120` | |
 | `PORT` | `8080` | |

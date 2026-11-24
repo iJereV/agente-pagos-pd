@@ -21,6 +21,7 @@ class Settings:
     simulated_transfers_path: Path | None
     order_created_topic: str
     extraction_model: str
+    extraction_model_location: str
     credit_limit_cents: int
     match_window: timedelta
     port: int
@@ -40,7 +41,8 @@ class Settings:
             mp_collector_id=os.environ.get("MP_COLLECTOR_ID"),
             simulated_transfers_path=Path(simulated_path) if simulated_path else None,
             order_created_topic=os.environ["ORDER_CREATED_TOPIC"],
-            extraction_model=os.environ.get("EXTRACTION_MODEL", "gemini-2.5-flash"),
+            extraction_model=os.environ.get("EXTRACTION_MODEL", "gemini-3.5-flash"),
+            extraction_model_location=os.environ.get("EXTRACTION_MODEL_LOCATION", "global"),
             credit_limit_cents=int(os.environ.get("CREDIT_LIMIT_CENTS", "1000")),
             match_window=timedelta(minutes=int(os.environ.get("MATCH_WINDOW_MINUTES", "120"))),
             port=int(os.environ.get("PORT", "8080")),

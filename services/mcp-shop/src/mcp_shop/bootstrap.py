@@ -37,7 +37,11 @@ def build_shop(settings: Settings) -> Shop:
                 storage.Client(project=settings.project), settings.media_bucket
             ),
             extractor=GeminiReceiptExtractor(
-                genai.Client(vertexai=True, project=settings.project, location=settings.location),
+                genai.Client(
+                    vertexai=True,
+                    project=settings.project,
+                    location=settings.extraction_model_location,
+                ),
                 settings.extraction_model,
             ),
             transfers=_transfer_verifier(settings),
