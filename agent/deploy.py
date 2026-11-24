@@ -5,7 +5,7 @@ Configuration comes from the environment (the same variables CI sets):
     GOOGLE_CLOUD_PROJECT    project id
     GOOGLE_CLOUD_LOCATION   region, default us-central1
     MCP_SHOP_URL            https://<mcp-shop>/mcp, passed to the deployed agent
-    AGENT_MODEL             optional, default gemini-3.5-flash
+    AGENT_MODEL             optional, default vertex_ai/openai/gpt-oss-120b-maas
     AGENT_MODEL_LOCATION    optional, default global (where the model is served)
     MCP_TIMEOUT_SECONDS     optional, default 30 (MCP session setup, covers cold starts)
     AGENT_SERVICE_ACCOUNT   sa-agent email; the agent runs as this identity
@@ -29,7 +29,9 @@ AGENT_DIR = Path(__file__).resolve().parent
 PACKAGE = "shop_agent"
 # Defaults for the variables the deployed agent reads at import time.
 AGENT_ENV_DEFAULTS = {
-    "AGENT_MODEL": "gemini-3.5-flash",
+    # gpt-oss on Vertex AI (MaaS). Gemini ids such as gemini-3.5-flash also work, but
+    # Gemini needs an eligible paid billing account; free-trial accounts get 403s.
+    "AGENT_MODEL": "vertex_ai/openai/gpt-oss-120b-maas",
     "AGENT_MODEL_LOCATION": "global",
     "MCP_TIMEOUT_SECONDS": "30",
 }
@@ -37,6 +39,7 @@ REQUIREMENTS = [
     "google-cloud-aiplatform[agent_engines,adk]>=2.10",
     "google-adk[mcp]>=2.15",
     "google-auth[requests]>=2.40",
+    "litellm>=1.84",
     # The agent is pickled locally and unpickled remotely: pin the same versions.
     f"cloudpickle=={cloudpickle.__version__}",
     f"pydantic=={pydantic.VERSION}",
@@ -51,6 +54,8 @@ def main() -> None:
     for name, default in AGENT_ENV_DEFAULTS.items():
         os.environ.setdefault(name, default)
     env_vars = {name: os.environ[name] for name in ("MCP_SHOP_URL", *AGENT_ENV_DEFAULTS)}
+    # LiteLLM reads the project for Vertex AI open models from here.
+    env_vars["VERTEXAI_PROJECT"] = project
 
     # extra_packages are archived relative to the working directory.
     os.chdir(AGENT_DIR)

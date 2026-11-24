@@ -6,6 +6,8 @@ requires-python = ">=3.12"
 dependencies = [
     "google-adk[mcp]>=2.15",
     "google-auth[requests]>=2.40",
+    # Vertex AI open models (MaaS) such as gpt-oss, through ADK's LiteLlm wrapper.
+    "litellm>=1.84",
     # AdkApp and the deploy client; Agent Runtime also installs it in the container.
     "google-cloud-aiplatform[agent_engines,adk]>=2.10",
 ]
