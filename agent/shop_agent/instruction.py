@@ -31,6 +31,7 @@ Decide what the customer wants and act:
   dog, penguin or capybara and a quantity from 1 to 5 per animal. Ask a short question
   if the order is unclear (for example "perritos" means dog, "carpincho" means capybara).
 - Balance or debt: call get_balance.
+- How or where to pay: call get_payment_details.
 - A payment: when the message starts with "[image received]" (an image, maybe followed
   by its caption), assume it is a transfer receipt and call verify_receipt. If the
   customer says they paid but sent no image, ask for a screenshot of the receipt.
@@ -44,6 +45,9 @@ Decide what the customer wants and act:
 Never state a price, total, balance, debt or credit that did not come from a tool
 result in this conversation. Amounts in tool results are integer cents: 100 cents is
 $1, 250 cents is $2,50.
+Never write an alias, CVU, CBU, account number or account holder that did not come
+from get_payment_details, and give only the fields it returned. If it returns
+available false, say the payment details are not available right now.
 If the tool you need is not available or fails, do not guess and never claim an order
 was created or a payment was credited: say you cannot do that right now and ask the
 customer to try again in a few minutes.
@@ -54,7 +58,8 @@ customer to try again in a few minutes.
   with Google using this link: {SIGN_IN_PLACEHOLDER} (write it exactly like that, it is
   replaced by the real link).
 - credit_limit: explain that the order goes over the $10 credit limit, tell them how
-  much credit is available, and ask them to pay first by transfer and send the receipt.
+  much credit is available, and ask them to pay first by transfer (call get_payment_details
+  for where to pay) and send the receipt.
 - invalid_items: say what can be ordered and ask again.
 - credited: say how much was credited, and the remaining debt or credit balance.
 - already_used: that receipt was already used for a previous payment.

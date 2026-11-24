@@ -112,6 +112,9 @@ jobs:
           export GOOGLE_CLOUD_PROJECT="$PROJECT_ID"
           export GOOGLE_CLOUD_LOCATION="$REGION"
           export AGENT_RESOURCE_NAME="$TF_VAR_agent_resource_name"
+          export PAYMENT_ALIAS="${{ vars.PAYMENT_ALIAS }}"
+          export PAYMENT_CVU="${{ vars.PAYMENT_CVU }}"
+          export PAYMENT_HOLDER="${{ vars.PAYMENT_HOLDER }}"
           uv sync --all-packages --locked
           # deploy.py prints the Agent Runtime resource name as its last line.
           uv run python agent/deploy.py | tee agent-deploy.log

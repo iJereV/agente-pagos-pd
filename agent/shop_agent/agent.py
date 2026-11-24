@@ -10,7 +10,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
 
 from .instruction import shop_instruction
 from .mcp_headers import audience_for, make_header_provider
-from .tools import get_catalog, request_sign_in
+from .tools import get_catalog, get_payment_details, request_sign_in
 
 AGENT_MODEL = os.environ.get("AGENT_MODEL", "vertex_ai/openai/gpt-oss-120b-maas")
 # Where the model is served. Independent of GOOGLE_CLOUD_LOCATION, which is the region
@@ -51,5 +51,5 @@ root_agent = Agent(
     model=model,
     description="WhatsApp assistant of a shop selling AI-generated animal images on credit.",
     instruction=shop_instruction,
-    tools=[get_catalog, request_sign_in, shop_tools],
+    tools=[get_catalog, get_payment_details, request_sign_in, shop_tools],
 )

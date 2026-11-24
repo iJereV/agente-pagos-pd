@@ -1,5 +1,6 @@
 """Local agent tools. They touch no data or money, so they live inside the agent."""
 
+import os
 from typing import Any
 
 from google.adk.tools.tool_context import ToolContext
@@ -28,6 +29,27 @@ def get_catalog() -> dict[str, Any]:
             for animal, cents in CATALOG_CENTS.items()
         ],
     }
+
+
+# Where customers transfer to. Configured per deployment, never hard-coded: the
+# repository is public and the agent must only repeat these exact values.
+PAYMENT_ENV = {"alias": "PAYMENT_ALIAS", "cvu": "PAYMENT_CVU", "holder": "PAYMENT_HOLDER"}
+
+
+def get_payment_details() -> dict[str, Any]:
+    """Returns the account where customers pay by bank transfer (alias, CVU, holder).
+
+    Use it whenever the customer asks how or where to pay. Give only the fields it
+    returns, copied exactly.
+    """
+    details = {
+        field: value
+        for field, name in PAYMENT_ENV.items()
+        if (value := os.environ.get(name, "").strip())
+    }
+    if "alias" not in details and "cvu" not in details:
+        return {"available": False}
+    return {"available": True, **details}
 
 
 def request_sign_in(tool_context: ToolContext) -> dict[str, bool]:

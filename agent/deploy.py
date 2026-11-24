@@ -11,6 +11,8 @@ Configuration comes from the environment (the same variables CI sets):
     AGENT_SERVICE_ACCOUNT   sa-agent email; the agent runs as this identity
     AGENT_STAGING_BUCKET    gs://... bucket where the SDK stages the build
     AGENT_RESOURCE_NAME     optional; when set, that resource is updated in place
+    PAYMENT_ALIAS, PAYMENT_CVU, PAYMENT_HOLDER
+                            where customers transfer to (alias or CVU required)
 
     uv run python agent/deploy.py
 
@@ -23,6 +25,7 @@ from pathlib import Path
 import cloudpickle
 import pydantic
 import vertexai
+from shop_agent.tools import PAYMENT_ENV
 from vertexai.agent_engines import AdkApp
 
 AGENT_DIR = Path(__file__).resolve().parent
@@ -56,6 +59,8 @@ def main() -> None:
     env_vars = {name: os.environ[name] for name in ("MCP_SHOP_URL", *AGENT_ENV_DEFAULTS)}
     # LiteLLM reads the project for Vertex AI open models from here.
     env_vars["VERTEXAI_PROJECT"] = project
+    # Where customers pay; get_payment_details only repeats these values.
+    env_vars |= {name: os.environ[name] for name in PAYMENT_ENV.values() if os.environ.get(name)}
 
     # extra_packages are archived relative to the working directory.
     os.chdir(AGENT_DIR)

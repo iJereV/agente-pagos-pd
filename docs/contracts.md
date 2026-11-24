@@ -289,7 +289,8 @@ Secrets come from Secret Manager, mounted as env vars by Cloud Run.
 | `IDENTITY_API_KEY` | link-web | | Identity Platform web API key (public by design) |
 | `IDENTITY_AUTH_DOMAIN` | link-web | | `<project>.firebaseapp.com` |
 | `MCP_SHOP_URL` | agent | | `https://<mcp-shop>/mcp` |
-| `AGENT_MODEL` | agent | | default `gemini-3.5-flash` |
+| `AGENT_MODEL` | agent | | default `vertex_ai/openai/gpt-oss-120b-maas` (LiteLLM); a Gemini id such as `gemini-3.5-flash` needs a paid billing account |
+| `PAYMENT_ALIAS`, `PAYMENT_CVU`, `PAYMENT_HOLDER` | agent | yes (alias or CVU) | where customers transfer to; returned by `get_payment_details` |
 | `AGENT_MODEL_LOCATION` | agent | | default `global` (where the agent model is served; the agent runs in `GOOGLE_CLOUD_LOCATION`) |
 | `MCP_TIMEOUT_SECONDS` | agent | | default `30` (MCP session setup; covers mcp-shop cold starts) |
 

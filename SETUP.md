@@ -274,7 +274,8 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 | `IDENTITY_API_KEY` | link-web | | browser API key, public by design (created by Terraform) |
 | `IDENTITY_AUTH_DOMAIN` | link-web | | `<PROJECT_ID>.firebaseapp.com` |
 | `MCP_SHOP_URL` | agent | | `https://<mcp-shop>/mcp` |
-| `AGENT_MODEL` | agent | | `gemini-3.5-flash` |
+| `AGENT_MODEL` | agent | | `vertex_ai/openai/gpt-oss-120b-maas` (Gemini ids need a paid billing account) |
+| `PAYMENT_ALIAS`, `PAYMENT_CVU`, `PAYMENT_HOLDER` | agent | alias or CVU | Where customers transfer to. In CI, repository variables of the same names |
 | `AGENT_MODEL_LOCATION` | agent | | `global` (where the agent model is served; the agent itself runs in `GOOGLE_CLOUD_LOCATION`) |
 | `MCP_TIMEOUT_SECONDS` | agent | | `30` (MCP session setup; covers mcp-shop cold starts) |
 
