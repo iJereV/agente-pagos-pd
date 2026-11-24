@@ -67,9 +67,32 @@ class Conversation:
         customer_inbound: bool,
         new_receipt_ref: str | None = None,
     ) -> TurnResult:
+        """Run one agent turn; an empty ``reply`` means the turn failed or said nothing.
+
+        Session and state errors propagate (Pub/Sub retries them before any model
+        call). A failing turn does not: it is logged and reported as an empty reply,
+        so callers answer with a fixed fallback instead of paying for the model again.
+        """
         pointer = await self._open_session(identity, customer_inbound, new_receipt_ref)
-        reply = await self._agent.run_turn(identity.wa_id, pointer.session_id, message)
-        reply = await self._render_sign_in(identity, pointer.session_id, reply)
+        try:
+            reply = await self._agent.run_turn(identity.wa_id, pointer.session_id, message)
+            reply = await self._render_sign_in(identity, pointer.session_id, reply)
+        except Exception as exc:  # Not BaseException: cancellation still propagates.
+            logger.exception(
+                "agent turn failed",
+                extra={
+                    "session_id": pointer.session_id,
+                    "customer_inbound": customer_inbound,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            reply = ""
+        else:
+            if not reply:
+                logger.error(
+                    "agent turn returned no text",
+                    extra={"session_id": pointer.session_id, "customer_inbound": customer_inbound},
+                )
         return TurnResult(
             reply=reply, window_open=window_open(pointer.last_inbound_at, self._clock())
         )

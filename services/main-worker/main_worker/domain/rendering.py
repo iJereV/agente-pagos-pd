@@ -9,6 +9,10 @@ from main_worker.domain.models import CustomerMessage
 
 SIGN_IN_PLACEHOLDER = "{{SIGN_IN_LINK}}"
 
+# Fixed customer-facing texts used when the agent turn fails or writes nothing.
+TURN_FALLBACK_REPLY = "Perdón, tuve un problema para responderte. Probá de nuevo en un ratito."
+ORDER_READY_FALLBACK_CAPTION = "¡Listo! Acá tenés tus imágenes."
+
 _EXTENSIONS = {
     "image/jpeg": "jpg",
     "image/png": "png",

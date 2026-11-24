@@ -1,6 +1,8 @@
 from datetime import timedelta
 
+import pytest
 from main_worker.domain.models import OrderReady
+from main_worker.domain.rendering import ORDER_READY_FALLBACK_CAPTION
 from main_worker_testkit import (
     CUSTOMER_ID,
     WA_ID,
@@ -43,6 +45,31 @@ async def test_inside_window_sends_agent_text_then_images(world: World) -> None:
         ("image", WA_ID, "uploaded-2"),
     ]
     assert world.whatsapp.uploads == [("1.png", b"png-1"), ("2.png", b"png-2")]
+    assert world.store.deliveries["ord_TEST1"]["status"] == "delivered"
+
+
+@pytest.mark.parametrize("fails", [True, False], ids=["turn-raises", "turn-empty"])
+async def test_failed_turn_still_delivers_images_with_the_fallback_caption(
+    world: World, fails: bool
+) -> None:
+    await open_window(world)
+    store_images(world)
+    if fails:
+
+        async def failing_turn(*_: object) -> str:
+            raise RuntimeError("model not found")
+
+        world.agent.run_turn = failing_turn
+    else:
+        world.agent.replies = [""]
+
+    await world.deliveries.handle_order_ready(ORDER)
+
+    assert world.whatsapp.sent == [
+        ("text", WA_ID, ORDER_READY_FALLBACK_CAPTION),
+        ("image", WA_ID, "uploaded-1"),
+        ("image", WA_ID, "uploaded-2"),
+    ]
     assert world.store.deliveries["ord_TEST1"]["status"] == "delivered"
 
 

@@ -3,6 +3,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from main_worker.domain.models import MediaFile
+from main_worker.domain.rendering import TURN_FALLBACK_REPLY
 from main_worker_testkit import (
     CUSTOMER_ID,
     WA_ID,
@@ -28,15 +29,49 @@ async def test_duplicate_message_is_processed_once(world: World) -> None:
     assert world.whatsapp.texts() == ["ok"]
 
 
-async def test_failed_message_releases_its_claim_for_the_retry(world: World) -> None:
-    async def failing_turn(*_: object) -> str:
-        raise RuntimeError("agent runtime unavailable")
+async def test_failure_before_the_turn_releases_its_claim_for_the_retry(world: World) -> None:
+    async def failing_session(*_: object) -> str:
+        raise RuntimeError("session service unavailable")
 
-    world.agent.run_turn = failing_turn
+    world.agent.create_session = failing_session
     with pytest.raises(RuntimeError):
         await world.inbound.handle(text_message())
 
     assert world.store.processed == {}
+    assert world.whatsapp.sent == []
+
+
+async def test_failed_turn_sends_the_fallback_reply_and_acknowledges(world: World) -> None:
+    async def failing_turn(*_: object) -> str:
+        raise RuntimeError("model not found")
+
+    world.agent.run_turn = failing_turn
+    await world.inbound.handle(text_message())
+
+    assert world.whatsapp.texts() == [TURN_FALLBACK_REPLY]
+    assert "wamid.TEST1" in world.store.processed  # Not retried: no second model call.
+
+
+async def test_empty_turn_sends_the_fallback_reply(world: World) -> None:
+    world.agent.replies = [""]
+
+    await world.inbound.handle(text_message())
+
+    assert world.whatsapp.texts() == [TURN_FALLBACK_REPLY]
+
+
+async def test_failed_system_turn_sends_nothing_and_acknowledges(world: World) -> None:
+    await world.inbound.handle(text_message())
+    world.link(timedelta(0))
+
+    async def failing_turn(*_: object) -> str:
+        raise RuntimeError("model not found")
+
+    world.agent.run_turn = failing_turn
+    await world.inbound.handle(sign_in_completed())
+
+    assert world.whatsapp.texts() == ["ok"]
+    assert "evt-1" in world.store.processed
 
 
 async def test_unlinked_number_gets_anonymous_state_and_token(world: World) -> None:

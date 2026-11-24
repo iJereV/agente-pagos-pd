@@ -9,7 +9,12 @@ from main_worker.application.conversation import Conversation
 from main_worker.application.deliveries import OrderDeliveries
 from main_worker.domain.errors import PermanentError
 from main_worker.domain.models import CustomerMessage, Identity, SystemEvent
-from main_worker.domain.rendering import customer_turn_input, receipt_path, system_event_input
+from main_worker.domain.rendering import (
+    TURN_FALLBACK_REPLY,
+    customer_turn_input,
+    receipt_path,
+    system_event_input,
+)
 from main_worker.ports import ChannelStore, MediaStore, WhatsApp
 
 logger = logging.getLogger(__name__)
@@ -66,8 +71,13 @@ class InboundHandler:
             customer_inbound=True,
             new_receipt_ref=receipt_ref,
         )
-        if turn.reply:
-            await self._whatsapp.send_text(message.wa_id, turn.reply)
+        reply = turn.reply
+        if not reply:
+            # Never leave the customer without an answer; the message is acknowledged
+            # rather than retried so a broken turn does not run the model again.
+            logger.warning("sending the fallback reply", extra={"wamid": message.wamid})
+            reply = TURN_FALLBACK_REPLY
+        await self._whatsapp.send_text(message.wa_id, reply)
         await self._deliveries.deliver_pending(message.wa_id)
 
     async def _system_event(self, event: SystemEvent) -> None:
@@ -78,6 +88,10 @@ class InboundHandler:
             identity, system_event_input(event.event, **fields), customer_inbound=False
         )
         if not turn.reply:
+            logger.warning(
+                "system event got no reply",
+                extra={"event": event.event, "event_id": event.event_id},
+            )
             return
         if not turn.window_open:
             logger.warning("system event reply dropped: outside the 24 h window")

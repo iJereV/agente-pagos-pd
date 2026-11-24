@@ -7,7 +7,11 @@ from main_worker.application import Clock
 from main_worker.application.conversation import Conversation
 from main_worker.domain.models import OrderReady
 from main_worker.domain.policy import Policy, window_open
-from main_worker.domain.rendering import content_type_for, system_event_input
+from main_worker.domain.rendering import (
+    ORDER_READY_FALLBACK_CAPTION,
+    content_type_for,
+    system_event_input,
+)
 from main_worker.ports import ChannelStore, MediaStore, WhatsApp
 
 logger = logging.getLogger(__name__)
@@ -70,8 +74,14 @@ class OrderDeliveries:
             ),
             customer_inbound=False,
         )
-        if turn.reply:
-            await self._whatsapp.send_text(order.wa_id, turn.reply)
+        reply = turn.reply
+        if not reply:
+            logger.warning(
+                "order ready without agent text; using the fallback caption",
+                extra={"order_id": order.order_id},
+            )
+            reply = ORDER_READY_FALLBACK_CAPTION
+        await self._whatsapp.send_text(order.wa_id, reply)
         for path in order.images:
             await self._send_image(order.wa_id, path)
         await self._store.mark_delivered(order, self._clock())

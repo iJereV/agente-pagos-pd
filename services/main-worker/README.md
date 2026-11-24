@@ -11,7 +11,7 @@ Contracts (messages, tokens, Firestore layout, session state): [docs/contracts.m
 | `POST` | `/pubsub/wa-inbound` | `wa-inbound` | `customer_message` and `system_event`. |
 | `POST` | `/pubsub/order-ready` | `order-ready` | Delivers an order: agent text plus images, or a template outside the 24 h window. |
 
-Acknowledgement policy: 204 on success and on permanent errors (malformed message, 4xx from Meta), which are logged; 503/500 on transient or unexpected errors so Pub/Sub retries and eventually dead-letters.
+Acknowledgement policy: 204 on success and on permanent errors (malformed message, 4xx from Meta), which are logged; 503/500 on transient or unexpected errors so Pub/Sub retries and eventually dead-letters. A failed agent turn (it raises or returns no text) is not retried, so the model is never paid for twice: a customer message gets a fixed Spanish fallback reply, an `order_ready` delivery sends the images with a fixed caption, other system events send nothing; the error is logged and the message acknowledged.
 
 ## Flow of a customer message
 
