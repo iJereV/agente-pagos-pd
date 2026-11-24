@@ -8,6 +8,7 @@ import random
 
 from google import genai
 from google.cloud import storage
+from google.genai import types
 from shared.pubsub import decode_push
 
 from .adapters.gcs_store import GcsMediaStore
@@ -27,6 +28,16 @@ _service = OrderImageService(
             vertexai=True,
             project=os.environ["GOOGLE_CLOUD_PROJECT"],
             location=os.environ.get("IMAGE_MODEL_LOCATION", "global"),
+            # Free-trial billing accounts get intermittent 403s from Gemini
+            # ("eligible paid billing account"); retry those with the usual codes.
+            http_options=types.HttpOptions(
+                retry_options=types.HttpRetryOptions(
+                    attempts=6,
+                    initial_delay=1.0,
+                    max_delay=8.0,
+                    http_status_codes=[403, 408, 429, 500, 502, 503, 504],
+                )
+            ),
         ),
         os.environ.get("IMAGE_MODEL", "gemini-3.1-flash-lite-image"),
     ),

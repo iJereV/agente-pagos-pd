@@ -3,6 +3,7 @@
 import httpx
 from google import genai
 from google.cloud import storage
+from google.genai import types
 
 from mcp_shop.adapters.firestore_repository import FirestoreShopRepository
 from mcp_shop.adapters.gcs_receipts import GcsReceiptStore
@@ -41,6 +42,16 @@ def build_shop(settings: Settings) -> Shop:
                     vertexai=True,
                     project=settings.project,
                     location=settings.extraction_model_location,
+                    # Free-trial billing accounts get intermittent 403s from Gemini
+                    # ("eligible paid billing account"); retry those with the usual codes.
+                    http_options=types.HttpOptions(
+                        retry_options=types.HttpRetryOptions(
+                            attempts=6,
+                            initial_delay=1.0,
+                            max_delay=8.0,
+                            http_status_codes=[403, 408, 429, 500, 502, 503, 504],
+                        )
+                    ),
                 ),
                 settings.extraction_model,
             ),
