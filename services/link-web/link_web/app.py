@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from .domain import Purpose, Rejection
 from .page import IdentityConfig, render_link_page
+from .privacy import PRIVACY_PAGE
 from .service import Failure, LinkService, SignInError
 
 PAGE_HEADERS = {
@@ -45,6 +46,10 @@ def create_app(service: LinkService, identity_config: IdentityConfig) -> FastAPI
     @app.get("/link", response_class=HTMLResponse)
     def link_page() -> HTMLResponse:
         return HTMLResponse(page, headers=PAGE_HEADERS)
+
+    @app.get("/privacy", response_class=HTMLResponse)
+    def privacy_page() -> HTMLResponse:
+        return HTMLResponse(PRIVACY_PAGE, headers={"X-Content-Type-Options": "nosniff"})
 
     @app.post("/api/link")
     def complete_link(body: LinkRequest) -> JSONResponse:

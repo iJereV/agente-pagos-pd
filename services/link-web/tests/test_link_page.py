@@ -21,3 +21,13 @@ def test_config_cannot_break_out_of_the_script_tag():
     )
 
     assert "</script><script>alert(1)" not in html
+
+
+def test_privacy_policy_is_public_and_names_the_deletion_channel(client):
+    response = client.get("/privacy")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Política de privacidad" in response.text
+    assert "borrar mis datos" in response.text
+    assert "noindex" not in response.text
