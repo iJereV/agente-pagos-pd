@@ -40,6 +40,22 @@ class GraphWhatsApp:
     async def send_text(self, to: str, body: str) -> None:
         await self._send(to, {"type": "text", "text": {"body": body}})
 
+    async def send_link_button(self, to: str, body: str, label: str, url: str) -> None:
+        await self._send(
+            to,
+            {
+                "type": "interactive",
+                "interactive": {
+                    "type": "cta_url",
+                    "body": {"text": body},
+                    "action": {
+                        "name": "cta_url",
+                        "parameters": {"display_text": label, "url": url},
+                    },
+                },
+            },
+        )
+
     async def send_image(self, to: str, media_id: str) -> None:
         await self._send(to, {"type": "image", "image": {"id": media_id}})
 

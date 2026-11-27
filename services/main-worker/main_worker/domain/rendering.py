@@ -2,6 +2,7 @@
 
 import json
 import mimetypes
+import re
 from typing import Any
 from urllib.parse import quote
 
@@ -12,6 +13,12 @@ SIGN_IN_PLACEHOLDER = "{{SIGN_IN_LINK}}"
 # Fixed customer-facing texts used when the agent turn fails or writes nothing.
 TURN_FALLBACK_REPLY = "Perdón, tuve un problema para responderte. Probá de nuevo en un ratito."
 ORDER_READY_FALLBACK_CAPTION = "¡Listo! Acá tenés tus imágenes."
+
+# The sign-in link goes out as a WhatsApp call-to-action button (label <= 20 chars).
+SIGN_IN_BUTTON_LABEL = "Iniciar sesión"
+SIGN_IN_BUTTON_BODY = "Tocá el botón para iniciar sesión con Google."
+# WhatsApp's limit for the body text of an interactive message.
+BUTTON_BODY_MAX_CHARS = 1024
 
 _EXTENSIONS = {
     "image/jpeg": "jpg",
@@ -42,16 +49,11 @@ def sign_in_url(link_web_url: str, token: str) -> str:
     return f"{link_web_url.rstrip('/')}/link?t={quote(token, safe='')}"
 
 
-def render_sign_in_link(reply: str, url: str) -> str:
-    """Replace the placeholder with the link, or append the link when it is missing."""
-    if SIGN_IN_PLACEHOLDER in reply:
-        return reply.replace(SIGN_IN_PLACEHOLDER, url)
-    return f"{reply.rstrip()}\n\n{url}" if reply.strip() else url
-
-
 def strip_sign_in_placeholder(reply: str) -> str:
-    """Remove a placeholder the agent wrote without requesting a sign-in."""
-    return reply.replace(SIGN_IN_PLACEHOLDER, "").strip()
+    """Remove the placeholder: the sign-in link travels as a button, never as text."""
+    text = reply.replace(SIGN_IN_PLACEHOLDER, "")
+    lines = (re.sub(r"[ \t]{2,}", " ", line).strip() for line in text.splitlines())
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
 def receipt_path(owner_id: str, wamid: str, mime_type: str) -> str:

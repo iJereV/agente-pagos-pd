@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 
 from main_worker.application import Clock
 from main_worker.application.conversation import Conversation
+from main_worker.application.replies import send_reply
 from main_worker.domain.models import OrderReady
 from main_worker.domain.policy import Policy, window_open
 from main_worker.domain.rendering import (
@@ -81,7 +82,7 @@ class OrderDeliveries:
                 extra={"order_id": order.order_id},
             )
             reply = ORDER_READY_FALLBACK_CAPTION
-        await self._whatsapp.send_text(order.wa_id, reply)
+        await send_reply(self._whatsapp, order.wa_id, reply, turn.sign_in_url)
         for path in order.images:
             await self._send_image(order.wa_id, path)
         await self._store.mark_delivered(order, self._clock())

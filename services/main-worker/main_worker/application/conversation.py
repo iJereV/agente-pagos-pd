@@ -19,7 +19,6 @@ from main_worker.domain.models import Identity, SessionPointer
 from main_worker.domain.policy import Policy, window_open
 from main_worker.domain.rendering import (
     SIGN_IN_PLACEHOLDER,
-    render_sign_in_link,
     sign_in_url,
     strip_sign_in_placeholder,
 )
@@ -32,6 +31,8 @@ logger = logging.getLogger(__name__)
 class TurnResult:
     reply: str
     window_open: bool
+    # Set when the agent asked for a sign-in; it is sent as a button, not in ``reply``.
+    sign_in_url: str | None = None
 
 
 class Conversation:
@@ -74,9 +75,11 @@ class Conversation:
         so callers answer with a fixed fallback instead of paying for the model again.
         """
         pointer = await self._open_session(identity, customer_inbound, new_receipt_ref)
+        url = None
         try:
-            reply = await self._agent.run_turn(identity.wa_id, pointer.session_id, message)
-            reply = await self._render_sign_in(identity, pointer.session_id, reply)
+            raw = await self._agent.run_turn(identity.wa_id, pointer.session_id, message)
+            url = await self._issue_sign_in(identity, pointer.session_id, raw)
+            reply = strip_sign_in_placeholder(raw)
         except Exception as exc:  # Not BaseException: cancellation still propagates.
             logger.exception(
                 "agent turn failed",
@@ -86,15 +89,17 @@ class Conversation:
                     "error_type": type(exc).__name__,
                 },
             )
-            reply = ""
+            reply, url = "", None
         else:
-            if not reply:
+            if not reply and not url:
                 logger.error(
                     "agent turn returned no text",
                     extra={"session_id": pointer.session_id, "customer_inbound": customer_inbound},
                 )
         return TurnResult(
-            reply=reply, window_open=window_open(pointer.last_inbound_at, self._clock())
+            reply=reply,
+            window_open=window_open(pointer.last_inbound_at, self._clock()),
+            sign_in_url=url,
         )
 
     async def _open_session(
@@ -143,12 +148,13 @@ class Conversation:
             "turn_token": token,
         }
 
-    async def _render_sign_in(self, identity: Identity, session_id: str, reply: str) -> str:
+    async def _issue_sign_in(self, identity: Identity, session_id: str, reply: str) -> str | None:
+        """The one-time sign-in URL when the agent requested a sign-in this turn."""
         state = await self._agent.get_state(identity.wa_id, session_id)
         if not state.get("sign_in_requested"):
             if SIGN_IN_PLACEHOLDER in reply:
                 logger.warning("agent wrote the sign-in placeholder without requesting a sign-in")
-            return strip_sign_in_placeholder(reply)
+            return None
 
         purpose = "reauth" if identity.is_linked else "link"
         token, jti = await asyncio.to_thread(
@@ -162,7 +168,7 @@ class Conversation:
         )
         await self._agent.update_state(identity.wa_id, session_id, {"sign_in_requested": False})
         logger.info("issued sign-in link", extra={"purpose": purpose})
-        return render_sign_in_link(reply, sign_in_url(self._policy.link_web_url, token))
+        return sign_in_url(self._policy.link_web_url, token)
 
 
 def _last_inbound(pointer: SessionPointer | None) -> datetime | None:

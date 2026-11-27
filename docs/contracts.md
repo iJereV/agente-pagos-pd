@@ -132,7 +132,7 @@ Lifetime: 120 seconds.
 
 ### Link token
 
-Signed by `main-worker` when the agent requested a sign-in. Sent to the customer inside the link `https://<LINK_WEB_URL>/link?t=<token>`.
+Signed by `main-worker` when the agent requested a sign-in. Sent to the customer as the URL of a WhatsApp call-to-action button: `https://<LINK_WEB_URL>/link?t=<token>`.
 
 ```json
 {"iss": "<sa-main-worker email>", "aud": "link-web", "wa_id": "5490000000001", "jti": "uuid4", "purpose": "link | reauth", "iat": 0, "exp": 0}
@@ -184,7 +184,7 @@ Verifiers read `TOKEN_SIGNER` (`iam` or `local`) and `TOKEN_ISSUER` (the main-wo
 - State keys written by main-worker before each turn: `wa_id`, `customer_id`, `is_linked`, `auth_fresh`, `turn_token`. Written by the agent: `sign_in_requested` (bool, reset by main-worker after the turn).
 - Turn input: customer text as-is; images as `"[image received]"` plus any caption; documents as `"[document received]"`; other types as `"[unsupported message received]"`; system events as a single line `SYSTEM_EVENT {json}` with no customer ids, e.g. `SYSTEM_EVENT {"event":"sign_in_completed"}` and `SYSTEM_EVENT {"event":"order_ready","order_id":"ord_...","image_count":3}`. The agent replies with plain text only.
 - Failed turn: when the turn raises or returns no text, main-worker does not retry it (no second model call). A customer message gets the fixed reply `Perdón, tuve un problema para responderte. Probá de nuevo en un ratito.`; an `order_ready` delivery still sends the images, with the fixed caption `¡Listo! Acá tenés tus imágenes.`; other system events send nothing. Session errors before the turn are still retried through Pub/Sub.
-- Placeholder: when the agent wants a sign-in it calls `request_sign_in()` and writes `{{SIGN_IN_LINK}}` in its reply. main-worker replaces it with the link (or appends the link if missing).
+- Placeholder: when the agent wants a sign-in it calls `request_sign_in()` and writes `{{SIGN_IN_LINK}}` in its reply. main-worker removes the placeholder and sends the reply as an interactive `cta_url` message whose button ("Iniciar sesión") opens the link. A reply over 1024 characters goes out as text followed by a separate button message; an empty reply gets a default button text. The link never appears in the message text.
 
 ## MCP server (`mcp-shop`)
 

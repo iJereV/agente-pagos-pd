@@ -19,7 +19,7 @@ Acknowledgement policy: 204 on success and on permanent errors (malformed messag
 2. Resolve `wa_links/{wa_id}`; `auth_fresh` when `customers/{uid}.last_sign_in_at` is within `AUTH_FRESH_HOURS`.
 3. Images and documents: download from the Graph API and store at `receipts/{customer_id or wa_id}/{wamid}.{ext}`.
 4. Reuse the session in `wa_sessions/{wa_id}` or rotate it after `SESSION_IDLE_HOURS` idle. Sign a turn token and write `wa_id`, `customer_id`, `is_linked`, `auth_fresh`, `turn_token` into session state.
-5. Run the turn. If the agent set `sign_in_requested`, issue a link token (`link_tokens/{sha256(jti)}`), put the link where `{{SIGN_IN_LINK}}` is (or append it) and reset the flag.
+5. Run the turn. If the agent set `sign_in_requested`, issue a link token (`link_tokens/{sha256(jti)}`), drop the `{{SIGN_IN_LINK}}` placeholder, send the reply with a "Iniciar sesión" button that opens the link (WhatsApp `cta_url` message) and reset the flag.
 6. Send the reply, then any `deliveries` waiting for the window for this `wa_id` (query on `wa_id` + `status`, backed by a composite index in Terraform). Every `deliveries/{order_id}` document keeps `status`, `delivered_at`, `wa_id`, `customer_id` and `images`.
 
 ## Code layout

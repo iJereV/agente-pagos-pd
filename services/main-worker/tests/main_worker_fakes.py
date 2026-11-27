@@ -88,6 +88,9 @@ class FakeWhatsApp:
     async def send_text(self, to: str, body: str) -> None:
         self.sent.append(("text", to, body))
 
+    async def send_link_button(self, to: str, body: str, label: str, url: str) -> None:
+        self.sent.append(("button", to, (body, label, url)))
+
     async def send_image(self, to: str, media_id: str) -> None:
         self.sent.append(("image", to, media_id))
 
@@ -100,6 +103,9 @@ class FakeWhatsApp:
 
     async def download_media(self, media_id: str) -> MediaFile:
         return self.media[media_id]
+
+    def buttons(self) -> list[tuple[str, str, str]]:
+        return [payload for kind, _, payload in self.sent if kind == "button"]
 
     def texts(self) -> list[str]:
         return [body for kind, _, body in self.sent if kind == "text"]

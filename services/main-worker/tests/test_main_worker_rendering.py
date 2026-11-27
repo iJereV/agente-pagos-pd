@@ -3,23 +3,23 @@ from main_worker.domain.models import CustomerMessage
 from main_worker.domain.rendering import (
     customer_turn_input,
     receipt_path,
-    render_sign_in_link,
+    strip_sign_in_placeholder,
     system_event_input,
 )
 
-URL = "https://link.example.test/link?t=abc"
 
-
-def test_placeholder_is_replaced() -> None:
-    assert render_sign_in_link("Entrá: {{SIGN_IN_LINK}}", URL) == f"Entrá: {URL}"
-
-
-def test_link_is_appended_when_placeholder_missing() -> None:
-    assert render_sign_in_link("Necesito que ingreses. ", URL) == f"Necesito que ingreses.\n\n{URL}"
-
-
-def test_empty_reply_becomes_the_link() -> None:
-    assert render_sign_in_link("", URL) == URL
+@pytest.mark.parametrize(
+    ("reply", "expected"),
+    [
+        ("Entrá: {{SIGN_IN_LINK}}", "Entrá:"),
+        ("Ingresá acá {{SIGN_IN_LINK}} y volvé.", "Ingresá acá y volvé."),
+        ("Iniciá sesión:\n\n{{SIGN_IN_LINK}}\n\nTe espero.", "Iniciá sesión:\n\nTe espero."),
+        ("{{SIGN_IN_LINK}}", ""),
+        ("Sin marcador.", "Sin marcador."),
+    ],
+)
+def test_placeholder_is_removed_cleanly(reply: str, expected: str) -> None:
+    assert strip_sign_in_placeholder(reply) == expected
 
 
 @pytest.mark.parametrize(

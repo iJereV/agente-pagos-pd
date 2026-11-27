@@ -11,7 +11,7 @@ data directly: domain tools live in mcp-shop. Contracts:
 | Tool | Where | Notes |
 |---|---|---|
 | `get_catalog()` | local | Static catalog (dog $1, penguin $3, capybara $5), cents plus a pesos label. |
-| `request_sign_in()` | local | Sets `sign_in_requested=True` in session state; the reply carries `{{SIGN_IN_LINK}}`, which main-worker replaces with the link. |
+| `request_sign_in()` | local | Sets `sign_in_requested=True` in session state; the reply may carry `{{SIGN_IN_LINK}}`, which main-worker removes; the link goes out as a WhatsApp button under the reply. |
 | `get_balance`, `create_order`, `verify_receipt`, `get_order_status` | mcp-shop | `McpToolset` over streamable HTTP at `MCP_SHOP_URL`. |
 
 Every MCP request carries two headers built per call by the toolset's

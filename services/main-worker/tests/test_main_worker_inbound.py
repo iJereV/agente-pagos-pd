@@ -3,7 +3,12 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from main_worker.domain.models import MediaFile
-from main_worker.domain.rendering import TURN_FALLBACK_REPLY
+from main_worker.domain.rendering import (
+    BUTTON_BODY_MAX_CHARS,
+    SIGN_IN_BUTTON_BODY,
+    SIGN_IN_BUTTON_LABEL,
+    TURN_FALLBACK_REPLY,
+)
 from main_worker_testkit import (
     CUSTOMER_ID,
     WA_ID,
@@ -165,32 +170,59 @@ async def test_receipt_reference_does_not_survive_rotation(world: World) -> None
     assert verify_turn_token(world.agent.state_at_turn[-1]["turn_token"]).last_receipt_ref is None
 
 
-async def test_sign_in_placeholder_is_replaced_with_a_link(world: World) -> None:
+def link_claims(url: str):
+    assert url.startswith("https://link.example.test/link?t=")
+    return verify_link_token(parse_qs(urlparse(url).query)["t"][0])
+
+
+async def test_sign_in_goes_out_as_a_button_under_the_reply(world: World) -> None:
     world.agent.request_sign_in = True
-    world.agent.replies = ["Ingresá acá: {{SIGN_IN_LINK}} y volvé."]
+    world.agent.replies = ["Para comprar iniciá sesión:\n\n{{SIGN_IN_LINK}}"]
 
     await world.inbound.handle(text_message("quiero comprar"))
 
-    [reply] = world.whatsapp.texts()
-    url = reply.removeprefix("Ingresá acá: ").removesuffix(" y volvé.")
-    assert url.startswith("https://link.example.test/link?t=")
-    claims = verify_link_token(parse_qs(urlparse(url).query)["t"][0])
+    assert world.whatsapp.texts() == []
+    [(body, label, url)] = world.whatsapp.buttons()
+    assert (body, label) == ("Para comprar iniciá sesión:", SIGN_IN_BUTTON_LABEL)
+    claims = link_claims(url)
     assert (claims.wa_id, claims.purpose) == (WA_ID, "link")
     assert [t["purpose"] for t in world.store.link_tokens.values()] == ["link"]
     assert world.agent.sessions["session-1"]["sign_in_requested"] is False
 
 
-async def test_sign_in_link_is_appended_when_placeholder_is_missing(world: World) -> None:
+async def test_sign_in_button_without_placeholder_keeps_the_text(world: World) -> None:
     world.link(timedelta(hours=48))
     world.agent.request_sign_in = True
     world.agent.replies = ["Necesito que vuelvas a ingresar."]
 
     await world.inbound.handle(text_message())
 
-    [reply] = world.whatsapp.texts()
-    first, link = reply.split("\n\n")
-    assert first == "Necesito que vuelvas a ingresar."
-    assert verify_link_token(link.split("t=")[1]).purpose == "reauth"
+    [(body, _, url)] = world.whatsapp.buttons()
+    assert body == "Necesito que vuelvas a ingresar."
+    assert link_claims(url).purpose == "reauth"
+
+
+async def test_sign_in_with_no_text_uses_the_default_button_body(world: World) -> None:
+    world.agent.request_sign_in = True
+    world.agent.replies = ["{{SIGN_IN_LINK}}"]
+
+    await world.inbound.handle(text_message())
+
+    assert world.whatsapp.texts() == []
+    [(body, _, _)] = world.whatsapp.buttons()
+    assert body == SIGN_IN_BUTTON_BODY
+
+
+async def test_long_reply_is_sent_before_a_separate_sign_in_button(world: World) -> None:
+    long_reply = "a" * (BUTTON_BODY_MAX_CHARS + 1)
+    world.agent.request_sign_in = True
+    world.agent.replies = [long_reply]
+
+    await world.inbound.handle(text_message())
+
+    assert [kind for kind, _, _ in world.whatsapp.sent] == ["text", "button"]
+    assert world.whatsapp.texts() == [long_reply]
+    assert world.whatsapp.buttons()[0][0] == SIGN_IN_BUTTON_BODY
 
 
 async def test_placeholder_without_request_is_removed(world: World) -> None:
