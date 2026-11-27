@@ -37,9 +37,10 @@ docs/                     contracts, architecture diagram
 | `penguin`  | 300           |
 | `capybara` | 500           |
 
-- Credit limit: `CREDIT_LIMIT_CENTS=1000`. An order is accepted when `unpaid_total - credit_balance + order_total <= limit`.
+- Prepaid balance: every customer gets a one-time welcome credit of `WELCOME_CREDIT_CENTS=1000`, granted by mcp-shop on the first balance-touching call as the movement `movements/welcome:{customer_id}` (created in the same transaction, so it is granted once).
+- An order is accepted only when `balance >= order_total`; it is debited in the same transaction. The balance never goes negative.
+- A verified transfer adds its amount to the balance. There is no debt and no allocation to orders.
 - Quantity per line: 1 to 5.
-- Payment allocation: oldest unpaid order first; remainder goes to `accounts/{customer_id}.credit_balance`. New orders consume credit balance first.
 
 ## Pub/Sub topics
 
@@ -191,10 +192,10 @@ Streamable HTTP MCP endpoint at `/mcp`. Cloud Run IAM (only `sa-agent` may invok
 
 | Tool | Arguments | Requires | Returns (JSON) |
 |---|---|---|---|
-| `get_balance` | none | linked + `auth_fresh` | `{"status": "ok", "debt_cents", "credit_balance_cents", "available_credit_cents", "unpaid_orders": [{"order_id","total_cents","paid_cents","created_at"}]}` or `{"status": "auth_required" \| "not_linked"}` |
-| `create_order` | `items: [{"animal": "dog"\|"penguin"\|"capybara", "qty": 1..5}]` | linked + `auth_fresh` | `{"status": "created", "order_id", "total_cents", "credit_used_cents"}` or `{"status": "credit_limit", "available_credit_cents"}` / `auth_required` / `not_linked` / `invalid_items` |
-| `verify_receipt` | none | linked | `{"status": "credited", "amount_cents", "allocations": [{"order_id","amount_cents"}], "credit_balance_cents", "debt_cents"}` or `already_used` / `not_found_yet` / `manual_review` / `not_a_receipt` / `no_receipt` / `not_linked` |
-| `get_order_status` | `order_id: str` | linked | `{"status": "ok", "order_status": "unpaid"\|"partially_paid"\|"paid", "total_cents", "paid_cents"}` or `not_found` |
+| `get_balance` | none | linked + `auth_fresh` | `{"status": "ok", "balance_cents"}` or `{"status": "auth_required" \| "not_linked"}` |
+| `create_order` | `items: [{"animal": "dog"\|"penguin"\|"capybara", "qty": 1..5}]` | linked + `auth_fresh` | `{"status": "created", "order_id", "total_cents", "balance_cents"}` (balance after the debit) or `{"status": "insufficient_balance", "balance_cents", "total_cents", "payment_needed_cents"}` (`total - balance`) / `auth_required` / `not_linked` / `invalid_items` |
+| `verify_receipt` | none | linked | `{"status": "credited", "amount_cents", "balance_cents"}` (balance after the credit) or `already_used` / `not_found_yet` / `manual_review` / `not_a_receipt` / `no_receipt` / `not_linked` |
+| `get_order_status` | `order_id: str` | linked | `{"status": "ok", "order_status": "unpaid"\|"partially_paid"\|"paid", "total_cents", "paid_cents"}` or `not_found` (new orders are always `paid`; the other values only appear on orders from the earlier credit model) |
 
 Local agent tools (not in mcp-shop): `get_catalog()`, `request_sign_in()`.
 
@@ -223,16 +224,21 @@ processed_messages/{id}    processed_at   (id = wamid or system event_id)
 `shop` (mcp-shop only):
 
 ```
-accounts/{customer_id}     credit_balance_cents
+accounts/{customer_id}     balance_cents   (legacy credit_balance_cents is read as the balance
+                           and removed on the next write)
+movements/{movement_id}    customer_id, kind (welcome_credit | order | payment), amount_cents (signed),
+                           balance_after_cents, reference, created_at
+                           (id = welcome:{customer_id} | order:{order_id} | payment:{payment_key};
+                           create-only)
 orders/{order_id}          customer_id, wa_id, items[], total_cents, paid_cents, status, created_at,
                            event_published (outbox flag for order_created)
 payments/{e2e_id}          provider, provider_payment_id, amount_cents, received_at, payer_cuit,
                            customer_id, match_method (coelsa_id | amount_cuit_window),
-                           allocations[], receipt_ref, created_at
+                           receipt_ref, created_at
 manual_reviews/{id}        customer_id, receipt_ref, reason, extracted{}, candidates[], created_at
 ```
 
-Composite indexes (Terraform): `shop/orders` on `customer_id` + `status`, `shop/orders` on `customer_id` + `event_published`, `channel/deliveries` on `wa_id` + `status`.
+Composite indexes (Terraform): `shop/orders` on `customer_id` + `status` (no longer queried since the prepaid model), `shop/orders` on `customer_id` + `event_published`, `channel/deliveries` on `wa_id` + `status`.
 
 ## Cloud Storage
 
@@ -278,7 +284,7 @@ Secrets come from Secret Manager, mounted as env vars by Cloud Run.
 | `ORDER_CREATED_TOPIC` | mcp-shop | | |
 | `EXTRACTION_MODEL` | mcp-shop | | default `gemini-3.5-flash` |
 | `EXTRACTION_MODEL_LOCATION` | mcp-shop | | default `global` (where the extraction model is served) |
-| `CREDIT_LIMIT_CENTS` | mcp-shop | | default `1000` |
+| `WELCOME_CREDIT_CENTS` | mcp-shop | | default `1000`; one-time welcome credit per customer |
 | `MATCH_WINDOW_MINUTES` | mcp-shop | | default `120` |
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |
 | `TOKEN_SIGNER` | mcp-shop, link-web | | must match main-worker's mode |

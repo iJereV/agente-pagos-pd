@@ -68,7 +68,7 @@ locals {
         ORDER_CREATED_TOPIC       = google_pubsub_topic.this["order-created"].name
         EXTRACTION_MODEL          = var.extraction_model
         EXTRACTION_MODEL_LOCATION = var.extraction_model_location
-        CREDIT_LIMIT_CENTS        = tostring(var.credit_limit_cents)
+        WELCOME_CREDIT_CENTS      = tostring(var.welcome_credit_cents)
         MATCH_WINDOW_MINUTES      = tostring(var.match_window_minutes)
       }
       secrets = ["mp-access-token"]

@@ -1,6 +1,6 @@
 # agente-pagos-pd
 
-A WhatsApp shop agent on Google Cloud. Customers chat in plain Spanish, order randomly generated animal images (dog, penguin, capybara) on credit, and pay their debt by bank transfer to a Mercado Pago account; the system verifies each transfer before crediting it.
+A WhatsApp shop agent on Google Cloud. Customers chat in plain Spanish, order randomly generated animal images (dog, penguin, capybara) from a prepaid balance that starts with a $10 welcome credit, and top it up by bank transfer to a Mercado Pago account; the system verifies each transfer before crediting it.
 
 It is a teaching project about **agent governance**: where an LLM agent should decide, where deterministic code must decide instead, and how identity, permissions and events keep the two apart.
 
@@ -13,7 +13,7 @@ It is a teaching project about **agent governance**: where an LLM agent should d
 | `wa-webhook` | Cloud Run, public | Verifies Meta's webhook signature, enqueues each message on `wa-inbound`, returns `200`. No business logic. |
 | `main-worker` | Cloud Run, private | Consumes `wa-inbound` and `order-ready`, resolves identity and session, signs the turn token, runs one agent turn and sends the reply. Only holder of the Meta token. |
 | Shop agent | Vertex AI Agent Runtime | ADK agent: understands the message, calls domain tools, writes the reply as plain text. |
-| `mcp-shop` | Cloud Run, private | MCP server with the domain tools: balance, orders on credit, receipt verification against Mercado Pago. The only component that moves money. |
+| `mcp-shop` | Cloud Run, private | MCP server with the domain tools: prepaid balance, orders, receipt verification against Mercado Pago. The only component that moves money. |
 | `image-generator` | Cloud Run, private | Consumes `order-created`, generates the images with FLUX.1 [schnell] on Cloudflare Workers AI, stores them in Cloud Storage, publishes `order-ready`. |
 | `link-web` | Cloud Run, public | One-time link page: Google sign-in through Identity Platform, binds a WhatsApp number to an account. |
 

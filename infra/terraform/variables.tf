@@ -82,8 +82,8 @@ variable "transfer_verifier" {
   }
 }
 
-variable "credit_limit_cents" {
-  description = "Credit limit per customer, in cents."
+variable "welcome_credit_cents" {
+  description = "One-time welcome credit per customer, in cents."
   type        = number
   default     = 1000
 }

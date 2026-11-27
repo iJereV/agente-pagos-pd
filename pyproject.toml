@@ -1,7 +1,7 @@
 [project]
 name = "agente-pagos-pd"
 version = "0.1.0"
-description = "WhatsApp shop agent on Google Cloud: orders on credit, Mercado Pago receipt verification and generated images."
+description = "WhatsApp shop agent on Google Cloud: prepaid orders, Mercado Pago receipt verification and generated images."
 requires-python = ">=3.12"
 
 [tool.uv.workspace]

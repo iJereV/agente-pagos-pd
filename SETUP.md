@@ -265,7 +265,7 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 | `ORDER_CREATED_TOPIC` | mcp-shop | | `order-created` |
 | `EXTRACTION_MODEL` | mcp-shop | | `gemini-3.5-flash` |
 | `EXTRACTION_MODEL_LOCATION` | mcp-shop | | `global` (where the extraction model is served) |
-| `CREDIT_LIMIT_CENTS` | mcp-shop | | `1000` |
+| `WELCOME_CREDIT_CENTS` | mcp-shop | | `1000` |
 | `MATCH_WINDOW_MINUTES` | mcp-shop | | `120` |
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |
 | `ORDER_READY_TOPIC` | image-generator | | `order-ready` |
