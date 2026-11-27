@@ -56,6 +56,15 @@ def strip_sign_in_placeholder(reply: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
+def whatsapp_markup(text: str) -> str:
+    """Markdown bold (``**x**`` or ``__x__``) as WhatsApp bold (``*x*``).
+
+    Models slip into Markdown despite the instruction; WhatsApp shows double asterisks
+    literally.
+    """
+    return re.sub(r"(\*\*|__)(?=\S)(.+?)(?<=\S)\1", r"*\2*", text)
+
+
 def receipt_path(owner_id: str, wamid: str, mime_type: str) -> str:
     """``receipts/{customer_id or wa_id}/{wamid}.{ext}``."""
     return f"receipts/{owner_id}/{wamid}.{file_extension(mime_type)}"

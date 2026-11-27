@@ -21,6 +21,7 @@ from main_worker.domain.rendering import (
     SIGN_IN_PLACEHOLDER,
     sign_in_url,
     strip_sign_in_placeholder,
+    whatsapp_markup,
 )
 from main_worker.ports import AgentRuntime, ChannelStore
 
@@ -79,7 +80,7 @@ class Conversation:
         try:
             raw = await self._agent.run_turn(identity.wa_id, pointer.session_id, message)
             url = await self._issue_sign_in(identity, pointer.session_id, raw)
-            reply = strip_sign_in_placeholder(raw)
+            reply = whatsapp_markup(strip_sign_in_placeholder(raw))
         except Exception as exc:  # Not BaseException: cancellation still propagates.
             logger.exception(
                 "agent turn failed",

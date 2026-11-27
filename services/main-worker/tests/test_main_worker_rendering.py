@@ -5,6 +5,7 @@ from main_worker.domain.rendering import (
     receipt_path,
     strip_sign_in_placeholder,
     system_event_input,
+    whatsapp_markup,
 )
 
 
@@ -20,6 +21,19 @@ from main_worker.domain.rendering import (
 )
 def test_placeholder_is_removed_cleanly(reply: str, expected: str) -> None:
     assert strip_sign_in_placeholder(reply) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Total: **$9** y te queda **$1**.", "Total: *$9* y te queda *$1*."),
+        ("__Listo__", "*Listo*"),
+        ("Ya está en *negrita*.", "Ya está en *negrita*."),
+        ("2 ** 3 no es negrita", "2 ** 3 no es negrita"),
+    ],
+)
+def test_markdown_bold_becomes_whatsapp_bold(text: str, expected: str) -> None:
+    assert whatsapp_markup(text) == expected
 
 
 @pytest.mark.parametrize(
