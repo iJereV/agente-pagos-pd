@@ -10,6 +10,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
 
 from .instruction import shop_instruction
 from .mcp_headers import audience_for, make_header_provider
+from .output_guard import strip_control_tokens
 from .tools import get_catalog, get_payment_details, request_sign_in
 
 AGENT_MODEL = os.environ.get("AGENT_MODEL", "vertex_ai/openai/gpt-oss-120b-maas")
@@ -52,4 +53,5 @@ root_agent = Agent(
     description="WhatsApp assistant of a shop selling AI-generated animal images paid from a prepaid balance.",
     instruction=shop_instruction,
     tools=[get_catalog, get_payment_details, request_sign_in, shop_tools],
+    after_model_callback=strip_control_tokens,
 )
