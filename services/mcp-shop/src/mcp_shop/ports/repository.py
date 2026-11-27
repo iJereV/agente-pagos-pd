@@ -1,4 +1,9 @@
-"""Persistence port. Writes that move money run as one transaction each."""
+"""Persistence port. Writes that move money run as one transaction each.
+
+Each money-moving method loads the ledger inside its transaction, runs a pure function on
+it and then stores the ledger's new movements with create-only writes plus the account
+balance. A movement that already exists fails the commit, so nothing is applied twice.
+"""
 
 from collections.abc import Callable
 from typing import Protocol
@@ -9,8 +14,12 @@ from mcp_shop.domain.payments import ManualReview, RecordedPayment
 
 
 class ShopRepository(Protocol):
-    async def load_ledger(self, customer_id: str) -> Ledger:
-        """Credit balance and unpaid orders (oldest first). Missing account means zero."""
+    async def update_ledger(self, customer_id: str, update: Callable[[Ledger], None]) -> Ledger:
+        """In one transaction: load the ledger, run `update`, store movements and account.
+
+        A missing account means a zero balance without the welcome credit. `update` may
+        run more than once if the transaction retries, so it must be pure.
+        """
         ...
 
     async def get_order(self, order_id: str) -> Order | None: ...
@@ -18,7 +27,7 @@ class ShopRepository(Protocol):
     async def place_order(
         self, customer_id: str, place: Callable[[Ledger], PlacedOrder]
     ) -> PlacedOrder:
-        """In one transaction: load the ledger, run `place`, store the order and account.
+        """In one transaction: load the ledger, run `place`, store the order and ledger.
 
         The order is stored with `event_published=false` (outbox). `place` may run more
         than once if the transaction retries, so it must be pure.

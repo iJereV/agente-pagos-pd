@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from mcp_shop.application.access import linked_customer
 from mcp_shop.application.ids import utc_now
-from mcp_shop.application.outcomes import AllocatedAmount, Credited, Rejected
+from mcp_shop.application.outcomes import Credited, Rejected
 from mcp_shop.domain.identity import Caller
 from mcp_shop.domain.ledger import Ledger
 from mcp_shop.domain.matching import Matched, NeedsReview, NotFound, match_receipt
@@ -29,6 +29,7 @@ class VerifyReceipt:
     extractor: ReceiptExtractor
     transfers: TransferVerifier
     match_window: timedelta
+    welcome_credit_cents: int
     clock: Callable[[], datetime] = utc_now
 
     async def __call__(self, caller: Caller) -> Credited | Rejected:
@@ -67,32 +68,23 @@ class VerifyReceipt:
         transfer = matched.transfer
 
         def apply(ledger: Ledger) -> RecordedPayment:
+            ledger.grant_welcome_credit(self.welcome_credit_cents, now)
             # The credited amount is always the provider's, never the receipt's.
-            result = ledger.apply_payment(transfer.amount_cents)
+            ledger.credit_payment(transfer.payment_key, transfer.amount_cents, now)
             return RecordedPayment(
                 transfer=transfer,
                 customer_id=customer_id,
                 match_method=matched.method,
-                allocations=result.allocations,
                 receipt_ref=receipt_ref,
                 created_at=now,
-                credit_balance_cents=ledger.credit_balance_cents,
-                debt_cents=ledger.debt_cents,
+                balance_cents=ledger.balance_cents,
             )
 
         try:
             payment = await self.repository.record_payment(customer_id, transfer.payment_key, apply)
         except PaymentAlreadyRecorded:
             return Rejected(status="already_used")
-        return Credited(
-            amount_cents=transfer.amount_cents,
-            allocations=[
-                AllocatedAmount(order_id=a.order_id, amount_cents=a.amount_cents)
-                for a in payment.allocations
-            ],
-            credit_balance_cents=payment.credit_balance_cents,
-            debt_cents=payment.debt_cents,
-        )
+        return Credited(amount_cents=transfer.amount_cents, balance_cents=payment.balance_cents)
 
     async def _send_to_review(
         self,

@@ -14,7 +14,7 @@ reply; this service validates, reads the truth and moves money. It is an MCP ser
                           │
    application/ ── use cases: get_balance, create_order, verify_receipt, get_order_status
                           │
-   domain/ ─────── pure rules: catalog, credit limit, ledger, allocation, matching, parsing
+   domain/ ─────── pure rules: catalog, prepaid ledger, matching, parsing
                           │
    ports/ ──────── TokenVerifier · ShopRepository · TransferVerifier · ReceiptStore
                    ReceiptExtractor · EventPublisher
@@ -39,7 +39,7 @@ token. A missing or invalid token is a tool error, not a closed outcome.
 | Tool | Arguments | Access | Outcomes |
 |---|---|---|---|
 | `get_balance` | none | linked + fresh sign-in | `ok`, `auth_required`, `not_linked` |
-| `create_order` | `items: [{animal, qty}]` | linked + fresh sign-in | `created`, `credit_limit`, `invalid_items`, `auth_required`, `not_linked` |
+| `create_order` | `items: [{animal, qty}]` | linked + fresh sign-in | `created`, `insufficient_balance`, `invalid_items`, `auth_required`, `not_linked` |
 | `verify_receipt` | none | linked | `credited`, `already_used`, `not_found_yet`, `manual_review`, `not_a_receipt`, `no_receipt`, `not_linked` |
 | `get_order_status` | `order_id` | linked | `ok`, `not_found`, `not_linked` |
 
@@ -48,10 +48,16 @@ integer cents.
 
 ## Domain rules
 
-- **Credit:** an order is accepted when `debt - credit_balance + total <= CREDIT_LIMIT_CENTS`.
-  The credit balance pays the new order first.
-- **Allocation:** a payment pays the oldest unpaid order first; the remainder becomes credit
-  balance. Order status is `unpaid`, `partially_paid` or `paid`.
+- **Prepaid balance:** every customer gets a one-time welcome credit of `WELCOME_CREDIT_CENTS`,
+  granted by code on their first balance-touching call (`get_balance`, `create_order` or a
+  credited `verify_receipt`). It is the movement `movements/welcome:{customer_id}`, created in
+  the same transaction that reads the balance, so retries and concurrent calls grant it once.
+- **Orders:** an order is accepted only when the balance covers its total; it is debited in the
+  same transaction that reads the balance, so concurrent orders cannot overspend. Otherwise the
+  outcome is `insufficient_balance` with `payment_needed_cents = total - balance`. The balance
+  never goes negative and new orders are always `paid`.
+- **Payments:** a verified transfer adds its amount to the balance. There is no debt and no
+  allocation to orders.
 - **Receipts:** Gemini only copies fields as printed (`amount_text`, `datetime_local_text`, ...).
   Code parses the Argentine amount (`$ 2.166,35` → `216635`) and converts the local time
   (America/Argentina/Buenos_Aires) to UTC.
@@ -68,7 +74,8 @@ integer cents.
   → match (`amount_cuit_window`), several → `manual_review` (`multiple_candidates`), none →
   `not_found_yet`. An unparseable amount → `manual_review` (`unreadable_receipt`).
 - **Recording:** one Firestore transaction creates `payments/{e2e_id}` (exists → `already_used`),
-  allocates and updates orders and account. The credited amount is always the provider's.
+  adds a `payment` movement and updates the account balance. The credited amount is always the
+  provider's.
 
 ## Environment
 
@@ -88,7 +95,7 @@ integer cents.
 | `ORDER_CREATED_TOPIC` | | required |
 | `EXTRACTION_MODEL` | `gemini-3.5-flash` | |
 | `EXTRACTION_MODEL_LOCATION` | `global` | Vertex AI location of the extraction model |
-| `CREDIT_LIMIT_CENTS` | `1000` | |
+| `WELCOME_CREDIT_CENTS` | `1000` | one-time welcome credit per customer; `0` disables it |
 | `MATCH_WINDOW_MINUTES` | `120` | |
 | `PORT` | `8080` | |
 
@@ -106,9 +113,14 @@ lands in manual review because the fixture's id has a zero where the receipt has
 
 ## Notes
 
-- Unpaid orders are queried by `customer_id` and `status in [unpaid, partially_paid]`, and the
-  outbox by `customer_id` and `event_published`; both are sorted in memory. Terraform creates a
-  composite index for each (`google_firestore_index` in `infra/terraform/firestore.tf`).
+- The outbox is queried by `customer_id` and `event_published` and sorted in memory; Terraform
+  creates its composite index (`google_firestore_index` in `infra/terraform/firestore.tf`). The
+  `customer_id` + `status` index served the earlier credit model and is no longer queried.
+- Every balance change is a create-only document in `movements/` (`welcome:{customer_id}`,
+  `order:{order_id}`, `payment:{payment_key}`) with its signed amount and the balance after it.
+- Data from the earlier credit model: an account's `credit_balance_cents` is read as its balance
+  and replaced by `balance_cents` on the next write. Old `unpaid` or `partially_paid` orders are
+  not collected or changed; `get_order_status` still reports them as stored.
 - `GET /health` backs the Cloud Run startup and liveness probes.
 - `order-created` goes through an outbox. The order is committed with `event_published=false`,
   the event is published after the commit (3 attempts, 0.2 s then 0.4 s backoff) and only then is

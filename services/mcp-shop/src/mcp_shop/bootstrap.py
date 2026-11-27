@@ -30,8 +30,8 @@ def build_shop(settings: Settings) -> Shop:
     return Shop(
         tokens=shared_turn_token_verifier(),
         order_events=order_events,
-        balance=GetBalance(repository, settings.credit_limit_cents),
-        ordering=CreateOrder(repository, order_events, settings.credit_limit_cents),
+        balance=GetBalance(repository, settings.welcome_credit_cents),
+        ordering=CreateOrder(repository, order_events, settings.welcome_credit_cents),
         receipts=VerifyReceipt(
             repository=repository,
             receipts=GcsReceiptStore(
@@ -57,6 +57,7 @@ def build_shop(settings: Settings) -> Shop:
             ),
             transfers=_transfer_verifier(settings),
             match_window=settings.match_window,
+            welcome_credit_cents=settings.welcome_credit_cents,
         ),
         order_status=GetOrderStatus(repository),
     )

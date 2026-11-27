@@ -1,7 +1,7 @@
 """ShopRepository on the named Firestore database `shop`.
 
-Layout (docs/contracts.md): `accounts/{customer_id}`, `orders/{order_id}`,
-`payments/{e2e_id}`, `manual_reviews/{id}`.
+Layout (docs/contracts.md): `accounts/{customer_id}`, `movements/{movement_id}`,
+`orders/{order_id}`, `payments/{e2e_id}`, `manual_reviews/{id}`.
 """
 
 from collections.abc import Callable
@@ -16,17 +16,19 @@ from google.cloud.firestore import (
 )
 
 from mcp_shop.domain.catalog import Animal, OrderLine
-from mcp_shop.domain.ledger import Ledger, PlacedOrder
-from mcp_shop.domain.orders import Order, OrderStatus
+from mcp_shop.domain.ledger import Ledger, Movement, PlacedOrder, welcome_movement_id
+from mcp_shop.domain.orders import Order
 from mcp_shop.domain.payments import ManualReview, PaymentAlreadyRecorded, RecordedPayment
 
 ACCOUNTS = "accounts"
+MOVEMENTS = "movements"
 ORDERS = "orders"
 PAYMENTS = "payments"
 MANUAL_REVIEWS = "manual_reviews"
 EVENT_PUBLISHED = "event_published"
 """Outbox flag on `orders/{order_id}`: false until `order_created` is published."""
-_OPEN_STATUSES = [OrderStatus.UNPAID.value, OrderStatus.PARTIALLY_PAID.value]
+LEGACY_CREDIT_BALANCE = "credit_balance_cents"
+"""Account field of the earlier credit model, read as the balance until first rewritten."""
 
 
 class FirestoreShopRepository:
@@ -37,8 +39,15 @@ class FirestoreShopRepository:
     def for_database(cls, project: str | None, database: str) -> "FirestoreShopRepository":
         return cls(firestore.AsyncClient(project=project, database=database))
 
-    async def load_ledger(self, customer_id: str) -> Ledger:
-        return await self._read_ledger(customer_id, transaction=None)
+    async def update_ledger(self, customer_id: str, update: Callable[[Ledger], None]) -> Ledger:
+        @async_transactional
+        async def run(transaction: AsyncTransaction) -> Ledger:
+            ledger = await self._read_ledger(customer_id, transaction)
+            update(ledger)
+            self._write_ledger(transaction, ledger)
+            return ledger
+
+        return await run(self._db.transaction())
 
     async def get_order(self, order_id: str) -> Order | None:
         snapshot = await self._db.collection(ORDERS).document(order_id).get()
@@ -56,7 +65,7 @@ class FirestoreShopRepository:
                 self._db.collection(ORDERS).document(order.order_id),
                 {**_order_doc(order), EVENT_PUBLISHED: False},
             )
-            self._write_account(transaction, ledger)
+            self._write_ledger(transaction, ledger)
             return placed
 
         return await run(self._db.transaction())
@@ -88,14 +97,7 @@ class FirestoreShopRepository:
             payment = apply(ledger)
             # `create` fails on commit if a concurrent receipt claimed the same transfer.
             transaction.create(payment_ref, _payment_doc(payment))
-            paid = {a.order_id for a in payment.allocations}
-            for order in ledger.unpaid_orders:
-                if order.order_id in paid:
-                    transaction.update(
-                        self._db.collection(ORDERS).document(order.order_id),
-                        {"paid_cents": order.paid_cents, "status": order.status.value},
-                    )
-            self._write_account(transaction, ledger)
+            self._write_ledger(transaction, ledger)
             return payment
 
         return await run(self._db.transaction())
@@ -116,28 +118,52 @@ class FirestoreShopRepository:
             )
         )
 
-    async def _read_ledger(self, customer_id: str, transaction: AsyncTransaction | None) -> Ledger:
+    async def _read_ledger(self, customer_id: str, transaction: AsyncTransaction) -> Ledger:
+        # Reading the welcome movement inside the transaction makes a concurrent grant
+        # conflict and retry, and its create-only write fails if it already exists.
         account = (
             await self._db.collection(ACCOUNTS).document(customer_id).get(transaction=transaction)
         )
-        open_orders = (
-            self._db.collection(ORDERS)
-            .where(filter=FieldFilter("customer_id", "==", customer_id))
-            .where(filter=FieldFilter("status", "in", _OPEN_STATUSES))
+        welcome = (
+            await self._db.collection(MOVEMENTS)
+            .document(welcome_movement_id(customer_id))
+            .get(transaction=transaction)
         )
-        snapshots = await open_orders.get(transaction=transaction)
-        orders = sorted(
-            (_order_from_doc(s.id, s.to_dict()) for s in snapshots), key=lambda o: o.created_at
+        return Ledger(
+            customer_id=customer_id,
+            balance_cents=_account_balance(account.to_dict() if account.exists else None),
+            welcome_credit_granted=welcome.exists,
         )
-        credit = (account.to_dict() or {}).get("credit_balance_cents", 0) if account.exists else 0
-        return Ledger(customer_id=customer_id, credit_balance_cents=credit, unpaid_orders=orders)
 
-    def _write_account(self, transaction: AsyncTransaction, ledger: Ledger) -> None:
+    def _write_ledger(self, transaction: AsyncTransaction, ledger: Ledger) -> None:
+        if not ledger.movements:
+            return
+        for movement in ledger.movements:
+            transaction.create(
+                self._db.collection(MOVEMENTS).document(movement.movement_id),
+                _movement_doc(movement),
+            )
         transaction.set(
             self._db.collection(ACCOUNTS).document(ledger.customer_id),
-            {"credit_balance_cents": ledger.credit_balance_cents},
+            {"balance_cents": ledger.balance_cents, LEGACY_CREDIT_BALANCE: firestore.DELETE_FIELD},
             merge=True,
         )
+
+
+def _account_balance(data: dict[str, Any] | None) -> int:
+    data = data or {}
+    return int(data.get("balance_cents", data.get(LEGACY_CREDIT_BALANCE, 0)))
+
+
+def _movement_doc(movement: Movement) -> dict[str, Any]:
+    return {
+        "customer_id": movement.customer_id,
+        "kind": movement.kind.value,
+        "amount_cents": movement.amount_cents,
+        "balance_after_cents": movement.balance_after_cents,
+        "reference": movement.reference,
+        "created_at": movement.created_at,
+    }
 
 
 def _order_doc(order: Order) -> dict[str, Any]:
@@ -175,9 +201,6 @@ def _payment_doc(payment: RecordedPayment) -> dict[str, Any]:
         "payer_cuit": transfer.payer_cuit,
         "customer_id": payment.customer_id,
         "match_method": payment.match_method.value,
-        "allocations": [
-            {"order_id": a.order_id, "amount_cents": a.amount_cents} for a in payment.allocations
-        ],
         "receipt_ref": payment.receipt_ref,
         "created_at": payment.created_at,
     }

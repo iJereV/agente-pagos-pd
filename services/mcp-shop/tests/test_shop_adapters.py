@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from mcp_shop.adapters.firestore_repository import _account_balance
 from mcp_shop.adapters.mercadopago import MercadoPagoTransferVerifier, to_incoming_transfer
 from mcp_shop.adapters.pubsub_publisher import PubSubEventPublisher, order_created_payload
 from mcp_shop.adapters.simulated import SimulatedTransferVerifier
@@ -140,3 +141,17 @@ async def test_simulated_fixture_loads_and_filters_by_time():
         datetime(2026, 11, 23, tzinfo=UTC), datetime(2026, 11, 23, 23, tzinfo=UTC)
     )
     assert [t.provider_payment_id for t in found] == ["sim-1001", "sim-1002"]
+
+
+@pytest.mark.parametrize(
+    ("account", "balance"),
+    [
+        (None, 0),
+        ({"balance_cents": 700}, 700),
+        # Accounts stored under the earlier credit model keep their credit as balance.
+        ({"credit_balance_cents": 250}, 250),
+        ({"balance_cents": 700, "credit_balance_cents": 250}, 700),
+    ],
+)
+def test_account_balance_reads_current_and_legacy_fields(account, balance):
+    assert _account_balance(account) == balance

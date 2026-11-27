@@ -1,6 +1,5 @@
 """In-memory fakes for every port and synthetic builders. No real data."""
 
-import copy
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -13,8 +12,8 @@ from mcp_shop.application.shop import Shop
 from mcp_shop.application.verify_receipt import VerifyReceipt
 from mcp_shop.domain.catalog import Animal, OrderLine
 from mcp_shop.domain.identity import Caller
-from mcp_shop.domain.ledger import Ledger, PlacedOrder
-from mcp_shop.domain.orders import Order, OrderStatus
+from mcp_shop.domain.ledger import Ledger, Movement, PlacedOrder, welcome_movement_id
+from mcp_shop.domain.orders import Order
 from mcp_shop.domain.payments import ManualReview, PaymentAlreadyRecorded, RecordedPayment
 from mcp_shop.domain.receipts import RawReceipt
 from mcp_shop.domain.transfers import IncomingTransfer
@@ -26,6 +25,7 @@ CUSTOMER = "cust-synthetic-1"
 WA_ID = "5490000000001"
 RECEIPT_REF = f"receipts/{CUSTOMER}/wamid.synthetic1.jpg"
 PAYER_CUIT = "20000000001"
+WELCOME = 1000
 
 
 def caller(
@@ -36,14 +36,14 @@ def caller(
     )
 
 
-def order(order_id: str, total: int, paid: int = 0, minutes_ago: int = 60) -> Order:
+def order(order_id: str, total: int, paid: int | None = None, minutes_ago: int = 60) -> Order:
     return Order(
         order_id=order_id,
         customer_id=CUSTOMER,
         wa_id=WA_ID,
         lines=(OrderLine(Animal.DOG, 1),),
         total_cents=total,
-        paid_cents=paid,
+        paid_cents=total if paid is None else paid,
         created_at=NOW - timedelta(minutes=minutes_ago),
     )
 
@@ -69,7 +69,8 @@ class InMemoryShopRepository:
     """Mirrors the transactional contract: work on a copy, commit only on success."""
 
     def __init__(self) -> None:
-        self.credit: dict[str, int] = {}
+        self.balances: dict[str, int] = {}
+        self.movements: dict[str, Movement] = {}
         self.orders: dict[str, Order] = {}
         self.payments: dict[str, RecordedPayment] = {}
         self.reviews: dict[str, ManualReview] = {}
@@ -78,16 +79,31 @@ class InMemoryShopRepository:
     def add_order(self, new: Order) -> None:
         self.orders[new.order_id] = new
 
-    async def load_ledger(self, customer_id: str) -> Ledger:
-        unpaid = sorted(
-            (
-                copy.deepcopy(o)
-                for o in self.orders.values()
-                if o.customer_id == customer_id and o.status != OrderStatus.PAID
-            ),
-            key=lambda o: o.created_at,
+    def _load(self, customer_id: str) -> Ledger:
+        return Ledger(
+            customer_id,
+            self.balances.get(customer_id, 0),
+            welcome_credit_granted=welcome_movement_id(customer_id) in self.movements,
         )
-        return Ledger(customer_id, self.credit.get(customer_id, 0), unpaid)
+
+    def _store(self, ledger: Ledger) -> None:
+        for movement in ledger.movements:
+            # Create-only, like the Firestore adapter: a repeated movement fails the commit.
+            if movement.movement_id in self.movements:
+                raise RuntimeError(f"movement {movement.movement_id} already exists")
+        for movement in ledger.movements:
+            self.movements[movement.movement_id] = movement
+        if ledger.movements:
+            self.balances[ledger.customer_id] = ledger.balance_cents
+
+    def movement_kinds(self, customer_id: str) -> list[str]:
+        return [m.kind.value for m in self.movements.values() if m.customer_id == customer_id]
+
+    async def update_ledger(self, customer_id: str, update: Callable[[Ledger], None]) -> Ledger:
+        ledger = self._load(customer_id)
+        update(ledger)
+        self._store(ledger)
+        return ledger
 
     async def get_order(self, order_id: str) -> Order | None:
         return self.orders.get(order_id)
@@ -95,11 +111,11 @@ class InMemoryShopRepository:
     async def place_order(
         self, customer_id: str, place: Callable[[Ledger], PlacedOrder]
     ) -> PlacedOrder:
-        ledger = await self.load_ledger(customer_id)
+        ledger = self._load(customer_id)
         placed = place(ledger)
+        self._store(ledger)
         self.orders[placed.order.order_id] = placed.order
         self.pending_events.add(placed.order.order_id)
-        self.credit[customer_id] = ledger.credit_balance_cents
         return placed
 
     async def orders_pending_event(self, customer_id: str) -> list[Order]:
@@ -120,12 +136,10 @@ class InMemoryShopRepository:
     ) -> RecordedPayment:
         if payment_key in self.payments:
             raise PaymentAlreadyRecorded(payment_key)
-        ledger = await self.load_ledger(customer_id)
+        ledger = self._load(customer_id)
         payment = apply(ledger)
+        self._store(ledger)
         self.payments[payment_key] = payment
-        for updated in ledger.unpaid_orders:
-            self.orders[updated.order_id] = updated
-        self.credit[customer_id] = ledger.credit_balance_cents
         return payment
 
     async def save_manual_review(self, review: ManualReview) -> None:
@@ -185,11 +199,11 @@ class World:
         self.shop = Shop(
             tokens=self.tokens,
             order_events=order_events,
-            balance=GetBalance(self.repository, credit_limit_cents=1000),
+            balance=GetBalance(self.repository, welcome_credit_cents=WELCOME, clock=lambda: NOW),
             ordering=CreateOrder(
                 self.repository,
                 order_events,
-                credit_limit_cents=1000,
+                welcome_credit_cents=WELCOME,
                 new_order_id=self._next_order_id,
                 clock=lambda: NOW,
             ),
@@ -199,6 +213,7 @@ class World:
                 extractor=self.extractor,
                 transfers=self.transfers,
                 match_window=timedelta(minutes=120),
+                welcome_credit_cents=WELCOME,
                 clock=lambda: NOW,
             ),
             order_status=GetOrderStatus(self.repository),

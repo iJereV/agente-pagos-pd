@@ -1,4 +1,7 @@
-"""Orders and their payment status."""
+"""Orders. New orders are paid from the balance when placed.
+
+`unpaid` and `partially_paid` only appear on orders stored under the earlier credit model.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -24,18 +27,9 @@ class Order:
     created_at: datetime
 
     @property
-    def outstanding_cents(self) -> int:
-        return self.total_cents - self.paid_cents
-
-    @property
     def status(self) -> OrderStatus:
         if self.paid_cents >= self.total_cents:
             return OrderStatus.PAID
         if self.paid_cents > 0:
             return OrderStatus.PARTIALLY_PAID
         return OrderStatus.UNPAID
-
-    def pay(self, amount_cents: int) -> None:
-        if not 0 < amount_cents <= self.outstanding_cents:
-            raise ValueError("payment must be positive and at most the outstanding amount")
-        self.paid_cents += amount_cents

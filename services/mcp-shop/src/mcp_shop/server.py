@@ -42,7 +42,7 @@ def build_server(shop: Shop) -> MCPServer:
 
     @server.tool()
     async def get_balance(ctx: Context) -> dict[str, Any]:
-        """Debt, credit balance, available credit and unpaid orders. Needs a fresh sign-in."""
+        """The customer's prepaid balance. Needs a fresh sign-in."""
         return _json(await shop.get_balance(await caller(ctx)))
 
     @server.tool()
@@ -50,12 +50,12 @@ def build_server(shop: Shop) -> MCPServer:
         items: Annotated[list[dict[str, Any]], Field(description=ITEMS_DESCRIPTION)],
         ctx: Context,
     ) -> dict[str, Any]:
-        """Place an order on credit, priced by the shop. Needs a fresh sign-in."""
+        """Place an order priced by the shop, paid from the balance. Needs a fresh sign-in."""
         return _json(await shop.create_order(await caller(ctx), items))
 
     @server.tool()
     async def verify_receipt(ctx: Context) -> dict[str, Any]:
-        """Verify the customer's last transfer receipt and credit the payment."""
+        """Verify the customer's last transfer receipt and add it to the balance."""
         return _json(await shop.verify_receipt(await caller(ctx)))
 
     @server.tool()

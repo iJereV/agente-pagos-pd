@@ -1,6 +1,5 @@
 """Closed tool outcomes, shaped exactly as in docs/contracts.md."""
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -22,44 +21,32 @@ class Rejected(BaseModel):
     ]
 
 
-class UnpaidOrder(BaseModel):
-    order_id: str
-    total_cents: int
-    paid_cents: int
-    created_at: datetime
-
-
 class Balance(BaseModel):
     status: Literal["ok"] = "ok"
-    debt_cents: int
-    credit_balance_cents: int
-    available_credit_cents: int
-    unpaid_orders: list[UnpaidOrder]
+    balance_cents: int
 
 
 class OrderCreated(BaseModel):
     status: Literal["created"] = "created"
     order_id: str
     total_cents: int
-    credit_used_cents: int
+    balance_cents: int
+    """Balance after the order was debited."""
 
 
-class CreditLimit(BaseModel):
-    status: Literal["credit_limit"] = "credit_limit"
-    available_credit_cents: int
-
-
-class AllocatedAmount(BaseModel):
-    order_id: str
-    amount_cents: int
+class NotEnoughBalance(BaseModel):
+    status: Literal["insufficient_balance"] = "insufficient_balance"
+    balance_cents: int
+    total_cents: int
+    payment_needed_cents: int
+    """`total_cents - balance_cents`, computed here so the model never does arithmetic."""
 
 
 class Credited(BaseModel):
     status: Literal["credited"] = "credited"
     amount_cents: int
-    allocations: list[AllocatedAmount]
-    credit_balance_cents: int
-    debt_cents: int
+    balance_cents: int
+    """Balance after the transfer was credited."""
 
 
 class OrderStatusView(BaseModel):

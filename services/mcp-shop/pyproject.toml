@@ -1,7 +1,7 @@
 [project]
 name = "mcp-shop"
 version = "0.1.0"
-description = "MCP server with the shop's domain tools: orders on credit and receipt verification."
+description = "MCP server with the shop's domain tools: prepaid orders and receipt verification."
 requires-python = ">=3.12"
 dependencies = [
     "shared",

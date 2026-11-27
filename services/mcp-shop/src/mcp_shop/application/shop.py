@@ -13,7 +13,7 @@ from mcp_shop.application.order_events import OrderEvents
 from mcp_shop.application.outcomes import (
     Balance,
     Credited,
-    CreditLimit,
+    NotEnoughBalance,
     OrderCreated,
     OrderStatusView,
     Rejected,
@@ -38,7 +38,7 @@ class Shop:
 
     async def create_order(
         self, caller: Caller, raw_items: Any
-    ) -> OrderCreated | CreditLimit | Rejected:
+    ) -> OrderCreated | NotEnoughBalance | Rejected:
         await self.order_events.flush(caller.customer_id)
         return await self.ordering(caller, raw_items)
 

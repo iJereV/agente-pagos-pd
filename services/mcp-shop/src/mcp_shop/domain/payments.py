@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from mcp_shop.domain.allocation import Allocation
 from mcp_shop.domain.matching import MatchMethod, ReviewReason
 from mcp_shop.domain.transfers import IncomingTransfer
 
@@ -17,12 +16,10 @@ class RecordedPayment:
     transfer: IncomingTransfer
     customer_id: str
     match_method: MatchMethod
-    allocations: tuple[Allocation, ...]
     receipt_ref: str
     created_at: datetime
-    credit_balance_cents: int
-    debt_cents: int
-    """Ledger state right after the payment was applied."""
+    balance_cents: int
+    """Balance right after the payment was credited."""
 
 
 @dataclass(frozen=True)
