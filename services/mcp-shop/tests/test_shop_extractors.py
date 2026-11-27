@@ -4,6 +4,7 @@ import httpx
 import pytest
 from mcp_shop.adapters.gemini_extractor import GeminiReceiptExtractor
 from mcp_shop.adapters.vertex_maas_extractor import (
+    RETRY_ATTEMPTS,
     VertexMaasReceiptExtractor,
     chat_completions_url,
 )
@@ -26,18 +27,46 @@ FIELDS = {
 }
 
 
-def extractor_answering(response: httpx.Response) -> tuple[VertexMaasReceiptExtractor, list]:
+def extractor_answering(*responses: httpx.Response) -> tuple[VertexMaasReceiptExtractor, list]:
+    """Answers with `responses` in order, repeating the last one."""
     requests: list[httpx.Request] = []
 
     def record(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return response
+        return responses[min(len(requests), len(responses)) - 1]
 
     async def token() -> str:
         return "test-token"
 
+    async def no_wait(_seconds: float) -> None:
+        return None
+
     http = httpx.AsyncClient(transport=httpx.MockTransport(record))
-    return VertexMaasReceiptExtractor(http, URL, MODEL, token), requests
+    return VertexMaasReceiptExtractor(http, URL, MODEL, token, sleep=no_wait), requests
+
+
+async def test_transient_403_is_retried():
+    forbidden = httpx.Response(403, json=[{"error": {"code": 403}}])
+    extractor, requests = extractor_answering(forbidden, completion(json.dumps(FIELDS)))
+
+    assert (await extractor.extract(RECEIPT)).is_receipt is True
+    assert len(requests) == 2
+
+
+async def test_retries_are_bounded():
+    extractor, requests = extractor_answering(httpx.Response(503))
+
+    with pytest.raises(ExtractionUnavailable):
+        await extractor.extract(RECEIPT)
+    assert len(requests) == RETRY_ATTEMPTS
+
+
+async def test_not_found_is_not_retried():
+    extractor, requests = extractor_answering(httpx.Response(404))
+
+    with pytest.raises(ExtractionUnavailable):
+        await extractor.extract(RECEIPT)
+    assert len(requests) == 1
 
 
 def completion(content: str) -> httpx.Response:

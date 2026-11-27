@@ -6,6 +6,7 @@ needs a paid billing account. The model only copies what is printed; the JSON it
 is validated against `ReceiptFields`, and anything else is treated as unavailable.
 """
 
+import asyncio
 import base64
 import json
 import re
@@ -25,6 +26,13 @@ SCHEMA_HINT = (
 )
 _CODE_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$")
 
+# Free-trial billing accounts get occasional 403s from Vertex AI model endpoints
+# (about 1 call in 5 for Llama 4); they pass on retry, like the usual transient codes.
+RETRY_STATUSES = frozenset({403, 408, 429, 500, 502, 503, 504})
+RETRY_ATTEMPTS = 5
+RETRY_BASE_DELAY = 1.0
+RETRY_MAX_DELAY = 8.0
+
 
 def chat_completions_url(project: str, location: str) -> str:
     host = (
@@ -42,11 +50,13 @@ class VertexMaasReceiptExtractor:
         url: str,
         model: str,
         access_token: Callable[[], Awaitable[str]],
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self._http = http
         self._url = url
         self._model = model
         self._access_token = access_token
+        self._sleep = sleep
 
     async def extract(self, receipt: ReceiptFile) -> RawReceipt:
         image = base64.b64encode(receipt.data).decode()
@@ -68,11 +78,7 @@ class VertexMaasReceiptExtractor:
             ],
         }
         try:
-            response = await self._http.post(
-                self._url,
-                json=body,
-                headers={"Authorization": f"Bearer {await self._access_token()}"},
-            )
+            response = await self._post_with_retries(body)
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"] or ""
             fields = ReceiptFields.model_validate_json(_CODE_FENCE.sub("", content.strip()))
@@ -86,3 +92,16 @@ class VertexMaasReceiptExtractor:
         ) as exc:
             raise ExtractionUnavailable(f"{self._model}: {type(exc).__name__}") from exc
         return RawReceipt(**fields.model_dump())
+
+    async def _post_with_retries(self, body: dict) -> httpx.Response:
+        """The last response after retrying transient statuses with exponential backoff."""
+        for attempt in range(RETRY_ATTEMPTS):
+            response = await self._http.post(
+                self._url,
+                json=body,
+                headers={"Authorization": f"Bearer {await self._access_token()}"},
+            )
+            if response.status_code not in RETRY_STATUSES or attempt == RETRY_ATTEMPTS - 1:
+                return response
+            await self._sleep(min(RETRY_BASE_DELAY * 2**attempt, RETRY_MAX_DELAY))
+        raise AssertionError("unreachable")
