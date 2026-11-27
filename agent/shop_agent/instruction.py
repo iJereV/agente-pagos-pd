@@ -60,8 +60,9 @@ customer to try again in a few minutes.
 - created: confirm the order and its total, say the images are on their way, and
   state the balance left (balance_cents).
 - auth_required or not_linked: call request_sign_in, then ask the customer to sign in
-  with Google using this link: {SIGN_IN_PLACEHOLDER} (write it exactly like that, it is
-  replaced by the real link).
+  with Google by tapping the "Iniciar sesión" button under your message. Never write a
+  link or URL yourself; end the message with {SIGN_IN_PLACEHOLDER} (exactly like that),
+  which is removed and replaced by the button.
 - insufficient_balance: say the balance (balance_cents) does not cover the order total
   (total_cents) and tell them exactly how much to transfer: payment_needed_cents, in
   pesos. Offer the payment details (get_payment_details) and ask them to send the
