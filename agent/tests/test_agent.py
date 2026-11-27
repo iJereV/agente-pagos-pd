@@ -25,6 +25,21 @@ async def test_instruction_bypasses_state_injection_and_keeps_placeholder():
     assert SIGN_IN_PLACEHOLDER in instruction
 
 
+def test_instruction_describes_the_prepaid_balance_model():
+    assert "$10 of free balance" in INSTRUCTION
+    assert "insufficient_balance" in INSTRUCTION
+    assert "payment_needed_cents" in INSTRUCTION
+    assert "balance_cents" in INSTRUCTION
+    for retired in ("credit_limit", "debt", "available_credit"):
+        assert retired not in INSTRUCTION
+
+
+def test_instruction_never_offers_order_changes_and_formats_for_whatsapp():
+    assert "cancel, refund, edit or adjust" in INSTRUCTION
+    assert "*single asterisks*" in INSTRUCTION
+    assert "never compute one yourself" in INSTRUCTION
+
+
 def test_gemini_is_served_from_its_own_location_not_the_runtime_region(monkeypatch):
     # Agent Runtime sets GOOGLE_CLOUD_LOCATION to the region the agent runs in.
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")

@@ -49,7 +49,7 @@ shop_tools = McpToolset(
 root_agent = Agent(
     name="shop_agent",
     model=model,
-    description="WhatsApp assistant of a shop selling AI-generated animal images on credit.",
+    description="WhatsApp assistant of a shop selling AI-generated animal images paid from a prepaid balance.",
     instruction=shop_instruction,
     tools=[get_catalog, get_payment_details, request_sign_in, shop_tools],
 )
