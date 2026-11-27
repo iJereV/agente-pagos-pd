@@ -4,7 +4,7 @@ from mcp_shop.config import Settings
 REQUIRED = {"MEDIA_BUCKET": "media", "ORDER_CREATED_TOPIC": "order-created"}
 
 
-def test_extraction_model_is_served_from_global_by_default(monkeypatch):
+def test_extraction_model_defaults_to_llama_4_on_vertex(monkeypatch):
     for name, value in REQUIRED.items():
         monkeypatch.setenv(name, value)
     monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "us-central1")
@@ -13,17 +13,17 @@ def test_extraction_model_is_served_from_global_by_default(monkeypatch):
 
     settings = Settings.from_env()
 
-    assert settings.extraction_model == "gemini-3.5-flash"
-    assert settings.extraction_model_location == "global"
+    assert settings.extraction_model == "meta/llama-4-maverick-17b-128e-instruct-maas"
+    assert settings.extraction_model_location == "us-east5"
     assert settings.location == "us-central1"
 
 
 def test_extraction_model_location_is_configurable(monkeypatch):
     for name, value in REQUIRED.items():
         monkeypatch.setenv(name, value)
-    monkeypatch.setenv("EXTRACTION_MODEL_LOCATION", "us-east5")
+    monkeypatch.setenv("EXTRACTION_MODEL_LOCATION", "europe-west4")
 
-    assert Settings.from_env().extraction_model_location == "us-east5"
+    assert Settings.from_env().extraction_model_location == "europe-west4"
 
 
 def test_welcome_credit_defaults_to_ten_pesos(monkeypatch):

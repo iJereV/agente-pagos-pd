@@ -22,5 +22,11 @@ class ReceiptStore(Protocol):
         ...
 
 
+class ExtractionUnavailable(Exception):
+    """The model could not be reached or did not answer in the expected shape."""
+
+
 class ReceiptExtractor(Protocol):
-    async def extract(self, receipt: ReceiptFile) -> RawReceipt: ...
+    async def extract(self, receipt: ReceiptFile) -> RawReceipt:
+        """Raises `ExtractionUnavailable` when the receipt cannot be read right now."""
+        ...

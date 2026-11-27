@@ -194,7 +194,7 @@ Streamable HTTP MCP endpoint at `/mcp`. Cloud Run IAM (only `sa-agent` may invok
 |---|---|---|---|
 | `get_balance` | none | linked + `auth_fresh` | `{"status": "ok", "balance_cents", "welcome_credit_cents"}` or `{"status": "auth_required" \| "not_linked"}` |
 | `create_order` | `items: [{"animal": "dog"\|"penguin"\|"capybara", "qty": 1..5}]` | linked + `auth_fresh` | `{"status": "created", "order_id", "total_cents", "balance_cents", "welcome_credit_cents"}` (balance after the debit) or `{"status": "insufficient_balance", "balance_cents", "total_cents", "payment_needed_cents", "welcome_credit_cents"}` (`total - balance`; the welcome credit is stored even though the order is refused) / `auth_required` / `not_linked` / `invalid_items` |
-| `verify_receipt` | none | linked | `{"status": "credited", "amount_cents", "balance_cents", "welcome_credit_cents"}` (balance after the credit) or `already_used` / `not_found_yet` / `manual_review` / `not_a_receipt` / `no_receipt` / `not_linked` |
+| `verify_receipt` | none | linked | `{"status": "credited", "amount_cents", "balance_cents", "welcome_credit_cents"}` (balance after the credit) or `already_used` / `not_found_yet` / `manual_review` / `not_a_receipt` / `no_receipt` / `temporarily_unavailable` (the receipt could not be read right now; nothing was recorded, send it again) / `not_linked` |
 | `get_order_status` | `order_id: str` | linked | `{"status": "ok", "order_status": "unpaid"\|"partially_paid"\|"paid", "total_cents", "paid_cents"}` or `not_found` (new orders are always `paid`; the other values only appear on orders from the earlier credit model) |
 
 `welcome_credit_cents` is the welcome credit granted by that same call (a new customer's first balance, order or payment), so the agent can announce it exactly once; it is `0` afterwards.
@@ -284,8 +284,8 @@ Secrets come from Secret Manager, mounted as env vars by Cloud Run.
 | `MP_COLLECTOR_ID` | mcp-shop | | numeric MP user id of the shop account |
 | `TRANSFER_VERIFIER` | mcp-shop | | `mercadopago` or `simulated` |
 | `ORDER_CREATED_TOPIC` | mcp-shop | | |
-| `EXTRACTION_MODEL` | mcp-shop | | default `gemini-3.5-flash` |
-| `EXTRACTION_MODEL_LOCATION` | mcp-shop | | default `global` (where the extraction model is served) |
+| `EXTRACTION_MODEL` | mcp-shop | | default `meta/llama-4-maverick-17b-128e-instruct-maas` (open model on Vertex AI, OpenAI-compatible endpoint; enable it once in Model Garden); a bare id such as `gemini-3.5-flash` is Gemini and needs a paid billing account |
+| `EXTRACTION_MODEL_LOCATION` | mcp-shop | | default `us-east5` (where the extraction model is served; `global` for Gemini) |
 | `WELCOME_CREDIT_CENTS` | mcp-shop | | default `1000`; one-time welcome credit per customer |
 | `MATCH_WINDOW_MINUTES` | mcp-shop | | default `120` |
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |

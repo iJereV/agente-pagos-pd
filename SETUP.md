@@ -263,8 +263,8 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 | `MP_COLLECTOR_ID` | mcp-shop | | numeric MP user id |
 | `TRANSFER_VERIFIER` | mcp-shop | | `mercadopago` or `simulated` |
 | `ORDER_CREATED_TOPIC` | mcp-shop | | `order-created` |
-| `EXTRACTION_MODEL` | mcp-shop | | `gemini-3.5-flash` |
-| `EXTRACTION_MODEL_LOCATION` | mcp-shop | | `global` (where the extraction model is served) |
+| `EXTRACTION_MODEL` | mcp-shop | | `meta/llama-4-maverick-17b-128e-instruct-maas` (enable "Llama 4 Maverick" once in Vertex AI Model Garden); Gemini ids need a paid billing account |
+| `EXTRACTION_MODEL_LOCATION` | mcp-shop | | `us-east5` (where the extraction model is served; `global` for Gemini) |
 | `WELCOME_CREDIT_CENTS` | mcp-shop | | `1000` |
 | `MATCH_WINDOW_MINUTES` | mcp-shop | | `120` |
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |
@@ -284,4 +284,4 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 
 ## Cost
 
-At test volume (about 300 messages, 50 receipts and 100 images a month) the estimate is USD 5-10 a month while Agent Runtime stays in its free tier, and roughly USD 75-80 with one agent instance running all month. The Vertex AI model calls (gpt-oss for the agent, Gemini for receipts) are the main variable cost; images on Cloudflare Workers AI are free within its daily allocation. Set `billing_account_id` to get budget alerts at 50, 90 and 100 % of USD 20. These figures are estimates; check the official pricing pages.
+At test volume (about 300 messages, 50 receipts and 100 images a month) the estimate is USD 5-10 a month while Agent Runtime stays in its free tier, and roughly USD 75-80 with one agent instance running all month. The Vertex AI model calls (gpt-oss for the agent, Llama 4 for receipts) are the main variable cost; images on Cloudflare Workers AI are free within its daily allocation. Set `billing_account_id` to get budget alerts at 50, 90 and 100 % of USD 20. These figures are estimates; check the official pricing pages.

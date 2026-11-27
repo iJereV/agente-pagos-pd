@@ -41,8 +41,12 @@ class Settings:
             mp_collector_id=os.environ.get("MP_COLLECTOR_ID"),
             simulated_transfers_path=Path(simulated_path) if simulated_path else None,
             order_created_topic=os.environ["ORDER_CREATED_TOPIC"],
-            extraction_model=os.environ.get("EXTRACTION_MODEL", "gemini-3.5-flash"),
-            extraction_model_location=os.environ.get("EXTRACTION_MODEL_LOCATION", "global"),
+            # Llama 4 runs on the same billing as gpt-oss; Gemini ids (e.g.
+            # "gemini-3.5-flash" in "global") need a paid billing account.
+            extraction_model=os.environ.get(
+                "EXTRACTION_MODEL", "meta/llama-4-maverick-17b-128e-instruct-maas"
+            ),
+            extraction_model_location=os.environ.get("EXTRACTION_MODEL_LOCATION", "us-east5"),
             welcome_credit_cents=_non_negative(
                 "WELCOME_CREDIT_CENTS", os.environ.get("WELCOME_CREDIT_CENTS", "1000")
             ),

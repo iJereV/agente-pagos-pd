@@ -58,7 +58,7 @@ integer cents.
   never goes negative and new orders are always `paid`.
 - **Payments:** a verified transfer adds its amount to the balance. There is no debt and no
   allocation to orders.
-- **Receipts:** Gemini only copies fields as printed (`amount_text`, `datetime_local_text`, ...).
+- **Receipts:** the vision model (Llama 4 on Vertex AI by default, or Gemini) only copies fields as printed (`amount_text`, `datetime_local_text`, ...).
   Code parses the Argentine amount (`$ 2.166,35` → `216635`) and converts the local time
   (America/Argentina/Buenos_Aires) to UTC.
 - **Matching** against incoming transfers from the provider. A receipt that shows a COELSA id
@@ -93,8 +93,8 @@ integer cents.
 | `MP_COLLECTOR_ID` | | shop's MP user id; required for `mercadopago` |
 | `SIMULATED_TRANSFERS_PATH` | bundled fixture | JSON list of transfers for `simulated` |
 | `ORDER_CREATED_TOPIC` | | required |
-| `EXTRACTION_MODEL` | `gemini-3.5-flash` | |
-| `EXTRACTION_MODEL_LOCATION` | `global` | Vertex AI location of the extraction model |
+| `EXTRACTION_MODEL` | `meta/llama-4-maverick-17b-128e-instruct-maas` | `publisher/model` is an open model on Vertex AI's OpenAI-compatible endpoint (enable it once in Model Garden); a bare id is Gemini (needs a paid billing account) |
+| `EXTRACTION_MODEL_LOCATION` | `us-east5` | Vertex AI location of the extraction model (`global` for Gemini) |
 | `WELCOME_CREDIT_CENTS` | `1000` | one-time welcome credit per customer; `0` disables it |
 | `MATCH_WINDOW_MINUTES` | `120` | |
 | `PORT` | `8080` | |

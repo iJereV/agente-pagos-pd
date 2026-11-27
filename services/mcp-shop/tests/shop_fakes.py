@@ -17,7 +17,7 @@ from mcp_shop.domain.orders import Order
 from mcp_shop.domain.payments import ManualReview, PaymentAlreadyRecorded, RecordedPayment
 from mcp_shop.domain.receipts import RawReceipt
 from mcp_shop.domain.transfers import IncomingTransfer
-from mcp_shop.ports.receipts import ReceiptFile, ReceiptNotFound
+from mcp_shop.ports.receipts import ExtractionUnavailable, ReceiptFile, ReceiptNotFound
 from mcp_shop.ports.tokens import InvalidTurnToken
 
 NOW = datetime(2026, 11, 23, 18, 0, tzinfo=UTC)
@@ -169,8 +169,11 @@ class FakeReceiptStore:
 class FakeExtractor:
     def __init__(self) -> None:
         self.result = RawReceipt(is_receipt=False)
+        self.unavailable = False
 
     async def extract(self, receipt: ReceiptFile) -> RawReceipt:
+        if self.unavailable:
+            raise ExtractionUnavailable("test")
         return self.result
 
 

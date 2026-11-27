@@ -109,15 +109,15 @@ variable "auth_fresh_hours" {
 # --- Models -------------------------------------------------------------------
 
 variable "extraction_model" {
-  description = "Gemini model used by mcp-shop to extract receipt fields."
+  description = "Vision model used by mcp-shop to extract receipt fields: <publisher>/<model> is an open model on Vertex AI (Model-as-a-Service, enabled once in Model Garden); a bare id such as gemini-3.5-flash is Gemini, which needs a paid billing account."
   type        = string
-  default     = "gemini-3.5-flash"
+  default     = "meta/llama-4-maverick-17b-128e-instruct-maas"
 }
 
 variable "extraction_model_location" {
-  description = "Vertex AI location where the extraction model is served."
+  description = "Vertex AI location where the extraction model is served (us-east5 for Llama 4, global for Gemini)."
   type        = string
-  default     = "global"
+  default     = "us-east5"
 }
 
 variable "image_model" {

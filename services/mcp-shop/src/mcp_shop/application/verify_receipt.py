@@ -1,6 +1,7 @@
 """Use case: prove a payment from the caller's last receipt and credit it."""
 
 import hashlib
+import logging
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -13,9 +14,16 @@ from mcp_shop.domain.ledger import Ledger
 from mcp_shop.domain.matching import Matched, NeedsReview, NotFound, match_receipt
 from mcp_shop.domain.payments import ManualReview, PaymentAlreadyRecorded, RecordedPayment
 from mcp_shop.domain.receipts import RawReceipt, parse_receipt
-from mcp_shop.ports.receipts import ReceiptExtractor, ReceiptNotFound, ReceiptStore
+from mcp_shop.ports.receipts import (
+    ExtractionUnavailable,
+    ReceiptExtractor,
+    ReceiptNotFound,
+    ReceiptStore,
+)
 from mcp_shop.ports.repository import ShopRepository
 from mcp_shop.ports.transfers import TransferVerifier
+
+logger = logging.getLogger(__name__)
 
 RECEIPTS_PREFIX = "receipts/"
 SEARCH_LOOKBACK = timedelta(days=2)
@@ -44,7 +52,11 @@ class VerifyReceipt:
         except ReceiptNotFound:
             return Rejected(status="no_receipt")
 
-        raw = await self.extractor.extract(receipt_file)
+        try:
+            raw = await self.extractor.extract(receipt_file)
+        except ExtractionUnavailable:
+            logger.warning("receipt extraction unavailable", exc_info=True)
+            return Rejected(status="temporarily_unavailable")
         if not raw.is_receipt:
             return Rejected(status="not_a_receipt")
         parsed = parse_receipt(raw)

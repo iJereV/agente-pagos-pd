@@ -17,6 +17,7 @@ class Rejected(BaseModel):
         "already_used",
         "not_found_yet",
         "manual_review",
+        "temporarily_unavailable",
         "not_found",
     ]
 

@@ -201,6 +201,17 @@ async def test_not_a_receipt(world: World):
     assert (await world.shop.verify_receipt(caller(receipt=RECEIPT_REF))).status == "not_a_receipt"
 
 
+async def test_unreadable_receipt_is_a_retryable_outcome_not_an_error(world: World):
+    world.receipt(bank_receipt())
+    world.transfers.add(transfer(e2e_id=COELSA, amount=500))
+    world.extractor.unavailable = True
+
+    outcome = await world.shop.verify_receipt(caller(receipt=RECEIPT_REF))
+
+    assert outcome.status == "temporarily_unavailable"
+    assert world.repository.payments == {}
+
+
 async def test_verified_transfer_is_added_to_the_balance(world: World):
     world.repository.balances[CUSTOMER] = 50
     world.repository.movements[f"welcome:{CUSTOMER}"] = welcome_movement()

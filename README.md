@@ -57,7 +57,7 @@ uv run pytest            # every test suite in one run, as in CI
 
 ## Tech stack
 
-Python 3.12, uv workspace, FastAPI, Google ADK, MCP (streamable HTTP), LiteLLM, gpt-oss-120b and Gemini on Vertex AI, Vertex AI Agent Runtime, Cloudflare Workers AI (FLUX.1 [schnell]), Cloud Run, Pub/Sub, Firestore, Cloud Storage, Secret Manager, Identity Platform, Terraform, GitHub Actions with Workload Identity Federation, WhatsApp Cloud API, Mercado Pago API.
+Python 3.12, uv workspace, FastAPI, Google ADK, MCP (streamable HTTP), LiteLLM, gpt-oss-120b and Llama 4 on Vertex AI, Vertex AI Agent Runtime, Cloudflare Workers AI (FLUX.1 [schnell]), Cloud Run, Pub/Sub, Firestore, Cloud Storage, Secret Manager, Identity Platform, Terraform, GitHub Actions with Workload Identity Federation, WhatsApp Cloud API, Mercado Pago API.
 
 ## License
 
