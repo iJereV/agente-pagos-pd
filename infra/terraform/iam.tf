@@ -4,11 +4,12 @@
 #   sa-wa-webhook       publish wa-inbound; Meta app secret + verify token   (secrets.tf)
 #   sa-main-worker      Firestore channel; Storage read orders/, write receipts/;
 #                       Meta access token; Agent Runtime; signJwt as itself
-#   sa-agent            Gemini on Vertex AI; invoke mcp-shop                  (cloud_run.tf);
+#   sa-agent            agent model on Vertex AI; invoke mcp-shop                  (cloud_run.tf);
 #                       write its own logs, traces and metrics (Agent Runtime telemetry)
 #   sa-mcp-shop         Firestore shop; MP token; publish order-created; Gemini;
 #                       Storage read receipts/
-#   sa-image-generator  image model; Storage write orders/; publish order-ready
+#   sa-image-generator  Cloudflare token (secrets.tf); Vertex AI only for a Gemini
+#                       image model; Storage write orders/; publish order-ready
 #   sa-link-web         Firestore channel; publish wa-inbound
 #   sa-pubsub-push      invoke main-worker and image-generator                (cloud_run.tf)
 
@@ -42,9 +43,14 @@ resource "google_project_iam_member" "firestore_user" {
 # roles/aiplatform.user is the narrowest predefined role that covers both model
 # calls and Agent Runtime queries/sessions; Vertex AI does not support resource
 # conditions for these calls. main-worker uses it only to query the agent.
+# image-generator needs it only when IMAGE_MODEL is a Gemini model; `@cf/` models
+# run on Cloudflare Workers AI.
 
 locals {
-  vertex_users = toset(["sa-main-worker", "sa-agent", "sa-mcp-shop", "sa-image-generator"])
+  vertex_users = toset(concat(
+    ["sa-main-worker", "sa-agent", "sa-mcp-shop"],
+    startswith(var.image_model, "@cf/") ? [] : ["sa-image-generator"],
+  ))
 }
 
 resource "google_project_iam_member" "vertex_user" {

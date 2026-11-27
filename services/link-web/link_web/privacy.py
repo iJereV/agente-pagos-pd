@@ -67,6 +67,8 @@ PRIVACY_PAGE = """<!doctype html>
     <li>Google Cloud, donde se alojan el servicio, los datos y los modelos de
     inteligencia artificial que procesan los mensajes y los comprobantes.</li>
     <li>Mercado Pago, para confirmar que una transferencia se haya acreditado.</li>
+    <li>Cloudflare, que genera las imágenes a partir de descripciones que no incluyen
+    datos tuyos.</li>
   </ul>
 
   <h2>Cuánto tiempo los guardamos</h2>

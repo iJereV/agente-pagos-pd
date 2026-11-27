@@ -37,15 +37,16 @@ image_generator/
   ports.py         ImageModel, MediaStore, EventPublisher
   service.py       use case: idempotency, daily cap, generation
   app.py           FastAPI push endpoint (driving adapter)
+  image_models.py  picks the ImageModel adapter from the model id
   main.py          composition root
-  adapters/        Cloud Storage, google-genai (Vertex AI), shared.pubsub
+  adapters/        Cloud Storage, Cloudflare Workers AI (httpx), google-genai (Vertex AI), shared.pubsub
 ```
 
 ## Environment
 
 `GOOGLE_CLOUD_PROJECT`, `MEDIA_BUCKET`, `ORDER_READY_TOPIC`,
 `IMAGE_MODEL` (default `@cf/black-forest-labs/flux-1-schnell`), `IMAGE_MODEL_LOCATION` (default
-`global`), `DAILY_GENERATION_CAP` (default `200`), `PORT` (default `8080`).
+`global`, Gemini only), `DAILY_GENERATION_CAP` (default `200`), `PORT` (default `8080`).
 
 The model id picks the adapter. `@cf/<publisher>/<model>` runs on Cloudflare Workers AI
 and needs `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` (a token from the "Workers AI"

@@ -286,7 +286,7 @@ Secrets come from Secret Manager, mounted as env vars by Cloud Run.
 | `IMAGE_MODEL` | image-generator | | default `@cf/black-forest-labs/flux-1-schnell` (Cloudflare Workers AI); any id without `@cf/` is a Gemini image model on Vertex AI |
 | `CLOUDFLARE_ACCOUNT_ID` | image-generator | | Cloudflare account for `@cf/` models |
 | `CLOUDFLARE_API_TOKEN` | image-generator | yes | Workers AI token, for `@cf/` models |
-| `IMAGE_MODEL_LOCATION` | image-generator | | default `global` (where the image model is served) |
+| `IMAGE_MODEL_LOCATION` | image-generator | | default `global` (where a Gemini image model is served; ignored for `@cf/`) |
 | `DAILY_GENERATION_CAP` | image-generator | | default `200` images per day |
 | `IDENTITY_API_KEY` | link-web | | Identity Platform web API key (public by design) |
 | `IDENTITY_AUTH_DOMAIN` | link-web | | `<project>.firebaseapp.com` |

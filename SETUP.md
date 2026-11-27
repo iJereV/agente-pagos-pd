@@ -272,7 +272,7 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 | `IMAGE_MODEL` | image-generator | | `@cf/black-forest-labs/flux-1-schnell` (Cloudflare Workers AI) |
 | `CLOUDFLARE_ACCOUNT_ID` | image-generator | | Cloudflare account for `@cf/` models (`cloudflare_account_id` in tfvars) |
 | `CLOUDFLARE_API_TOKEN` | image-generator | yes | Workers AI token |
-| `IMAGE_MODEL_LOCATION` | image-generator | | `global` (where the image model is served) |
+| `IMAGE_MODEL_LOCATION` | image-generator | | `global` (where a Gemini image model is served; ignored for `@cf/`) |
 | `DAILY_GENERATION_CAP` | image-generator | | `200` |
 | `IDENTITY_API_KEY` | link-web | | browser API key, public by design (created by Terraform) |
 | `IDENTITY_AUTH_DOMAIN` | link-web | | `<PROJECT_ID>.firebaseapp.com` |
@@ -284,4 +284,4 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 
 ## Cost
 
-At test volume (about 300 messages, 50 receipts and 100 images a month) the estimate is USD 5-10 a month while Agent Runtime stays in its free tier, and roughly USD 75-80 with one agent instance running all month. Gemini and image generation are the main variable cost. Set `billing_account_id` to get budget alerts at 50, 90 and 100 % of USD 20. These figures are estimates; check the official pricing pages.
+At test volume (about 300 messages, 50 receipts and 100 images a month) the estimate is USD 5-10 a month while Agent Runtime stays in its free tier, and roughly USD 75-80 with one agent instance running all month. The Vertex AI model calls (gpt-oss for the agent, Gemini for receipts) are the main variable cost; images on Cloudflare Workers AI are free within its daily allocation. Set `billing_account_id` to get budget alerts at 50, 90 and 100 % of USD 20. These figures are estimates; check the official pricing pages.

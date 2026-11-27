@@ -14,7 +14,7 @@ It is a teaching project about **agent governance**: where an LLM agent should d
 | `main-worker` | Cloud Run, private | Consumes `wa-inbound` and `order-ready`, resolves identity and session, signs the turn token, runs one agent turn and sends the reply. Only holder of the Meta token. |
 | Shop agent | Vertex AI Agent Runtime | ADK agent: understands the message, calls domain tools, writes the reply as plain text. |
 | `mcp-shop` | Cloud Run, private | MCP server with the domain tools: balance, orders on credit, receipt verification against Mercado Pago. The only component that moves money. |
-| `image-generator` | Cloud Run, private | Consumes `order-created`, generates the images, stores them in Cloud Storage, publishes `order-ready`. |
+| `image-generator` | Cloud Run, private | Consumes `order-created`, generates the images with FLUX.1 [schnell] on Cloudflare Workers AI, stores them in Cloud Storage, publishes `order-ready`. |
 | `link-web` | Cloud Run, public | One-time link page: Google sign-in through Identity Platform, binds a WhatsApp number to an account. |
 
 ## Key design decisions
@@ -57,7 +57,7 @@ uv run pytest            # every test suite in one run, as in CI
 
 ## Tech stack
 
-Python 3.12, uv workspace, FastAPI, Google ADK, MCP (streamable HTTP), Gemini on Vertex AI, Vertex AI Agent Runtime, Cloud Run, Pub/Sub, Firestore, Cloud Storage, Secret Manager, Identity Platform, Terraform, GitHub Actions with Workload Identity Federation, WhatsApp Cloud API, Mercado Pago API.
+Python 3.12, uv workspace, FastAPI, Google ADK, MCP (streamable HTTP), LiteLLM, gpt-oss-120b and Gemini on Vertex AI, Vertex AI Agent Runtime, Cloudflare Workers AI (FLUX.1 [schnell]), Cloud Run, Pub/Sub, Firestore, Cloud Storage, Secret Manager, Identity Platform, Terraform, GitHub Actions with Workload Identity Federation, WhatsApp Cloud API, Mercado Pago API.
 
 ## License
 

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 740" width="1340" height="740" role="img" aria-label="Component diagram. Top row, the conversation path from left to right: customer, Meta WhatsApp Cloud API, the public wa-webhook service, the wa-inbound Pub/Sub topic, the private main-worker service, the shop agent on Agent Runtime and Gemini. main-worker sends replies and images back to Meta. Below the agent, mcp-shop talks to Mercado Pago, Gemini for receipt extraction and Firestore, and publishes order-created. The image generator consumes order-created, calls the image model, stores images in Cloud Storage and publishes order-ready, which is pushed to main-worker. main-worker reads identity and sessions from Firestore and images from Cloud Storage. link-web signs customers in with Google through Identity Platform and writes the binding to Firestore.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 740" width="1340" height="740" role="img" aria-label="Component diagram. Top row, the conversation path from left to right: customer, Meta WhatsApp Cloud API, the public wa-webhook service, the wa-inbound Pub/Sub topic, the private main-worker service, the shop agent on Agent Runtime and its models on Vertex AI (gpt-oss-120b for the agent, Gemini for receipts). main-worker sends replies and images back to Meta. Below the agent, mcp-shop talks to Mercado Pago, Gemini for receipt extraction and Firestore, and publishes order-created. The image generator consumes order-created, calls FLUX.1 [schnell] on Cloudflare Workers AI, stores images in Cloud Storage and publishes order-ready, which is pushed to main-worker. main-worker reads identity and sessions from Firestore and images from Cloud Storage. link-web signs customers in with Google through Identity Platform and writes the binding to Firestore.">
   <title>agente-pagos-pd component architecture</title>
   <style>
     svg { color: #1b2420; }
@@ -116,8 +116,8 @@
     <text class="n-title" x="1050" y="147" text-anchor="middle">Shop agent (ADK)</text>
     <text class="n-sub" x="1050" y="166" text-anchor="middle">Agent Runtime</text></g>
   <g class="n-managed"><rect x="1160" y="120" width="160" height="64" rx="8"/>
-    <text class="n-title" x="1240" y="147" text-anchor="middle">Gemini</text>
-    <text class="n-sub" x="1240" y="166" text-anchor="middle">Vertex AI</text></g>
+    <text class="n-title" x="1240" y="147" text-anchor="middle">Vertex AI models</text>
+    <text class="n-sub" x="1240" y="166" text-anchor="middle">gpt-oss-120b · Gemini</text></g>
   <!-- row 2 -->
   <g class="n-ext"><rect x="20" y="300" width="160" height="64" rx="8"/>
     <text class="n-title" x="100" y="327" text-anchor="middle">Customer</text>
@@ -156,9 +156,9 @@
     <text class="n-title" x="1050" y="527" text-anchor="middle">Pub/Sub</text>
     <text class="n-sub" x="1050" y="546" text-anchor="middle">order-created</text></g>
   <!-- row 4 -->
-  <g class="n-managed"><rect x="780" y="660" width="160" height="64" rx="8"/>
-    <text class="n-title" x="860" y="687" text-anchor="middle">Image model</text>
-    <text class="n-sub" x="860" y="706" text-anchor="middle">Vertex AI</text></g>
+  <g class="n-ext"><rect x="780" y="660" width="160" height="64" rx="8"/>
+    <text class="n-title" x="860" y="687" text-anchor="middle">FLUX.1 [schnell]</text>
+    <text class="n-sub" x="860" y="706" text-anchor="middle">Cloudflare Workers AI</text></g>
 
   <!-- legend -->
   <g transform="translate(20 664)">
