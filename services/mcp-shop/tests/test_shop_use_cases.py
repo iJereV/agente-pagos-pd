@@ -68,6 +68,7 @@ async def test_first_order_is_paid_from_the_welcome_credit(world: World):
         "order_id": "ord_test1",
         "total_cents": 700,
         "balance_cents": 300,
+        "welcome_credit_cents": 1000,
     }
     stored = world.repository.orders["ord_test1"]
     assert stored.customer_id == CUSTOMER and stored.wa_id == WA_ID
@@ -83,8 +84,11 @@ async def test_first_order_is_paid_from_the_welcome_credit(world: World):
 
 async def test_orders_debit_until_the_balance_runs_out(world: World):
     capybara = [{"animal": "capybara", "qty": 1}]
-    assert (await world.shop.create_order(caller(), capybara)).balance_cents == 500
-    assert (await world.shop.create_order(caller(), capybara)).balance_cents == 0
+    first = await world.shop.create_order(caller(), capybara)
+    assert (first.balance_cents, first.welcome_credit_cents) == (500, 1000)
+    second = await world.shop.create_order(caller(), capybara)
+    # Announced once: later results report no new welcome credit.
+    assert (second.balance_cents, second.welcome_credit_cents) == (0, 0)
 
     outcome = await world.shop.create_order(caller(), [{"animal": "dog", "qty": 1}])
 
@@ -93,12 +97,13 @@ async def test_orders_debit_until_the_balance_runs_out(world: World):
         "balance_cents": 0,
         "total_cents": 100,
         "payment_needed_cents": 100,
+        "welcome_credit_cents": 0,
     }
     assert world.repository.balances[CUSTOMER] == 0
     assert len(world.repository.orders) == 2
 
 
-async def test_order_over_the_balance_is_refused_without_writing(world: World):
+async def test_order_over_the_balance_is_refused_but_the_welcome_credit_is_kept(world: World):
     outcome = await world.shop.create_order(
         caller(), [{"animal": "capybara", "qty": 2}, {"animal": "penguin", "qty": 1}]
     )
@@ -107,12 +112,14 @@ async def test_order_over_the_balance_is_refused_without_writing(world: World):
         "balance_cents": 1000,
         "total_cents": 1300,
         "payment_needed_cents": 300,
+        "welcome_credit_cents": 1000,
     }
     assert world.repository.orders == {}
-    assert world.repository.movements == {}
     assert world.publisher.orders == []
-    # The welcome credit is still granted on the next successful operation.
-    assert (await world.shop.get_balance(caller())).balance_cents == 1000
+    # Granted (and announced) once, even though the order itself was refused.
+    assert world.repository.movement_kinds(CUSTOMER) == ["welcome_credit"]
+    balance = await world.shop.get_balance(caller())
+    assert (balance.balance_cents, balance.welcome_credit_cents) == (1000, 0)
 
 
 async def test_welcome_credit_is_never_granted_twice(world: World):
@@ -151,7 +158,11 @@ async def test_invalid_items_are_rejected_without_writing(world: World, items):
 
 async def test_new_customer_balance_is_the_welcome_credit(world: World):
     balance = await world.shop.get_balance(caller())
-    assert balance.model_dump() == {"status": "ok", "balance_cents": 1000}
+    assert balance.model_dump() == {
+        "status": "ok",
+        "balance_cents": 1000,
+        "welcome_credit_cents": 1000,
+    }
     [welcome] = world.repository.movements.values()
     assert welcome.movement_id == f"welcome:{CUSTOMER}" and welcome.created_at == NOW
 
@@ -198,7 +209,12 @@ async def test_verified_transfer_is_added_to_the_balance(world: World):
 
     outcome = await world.shop.verify_receipt(caller(receipt=RECEIPT_REF))
 
-    assert outcome.model_dump() == {"status": "credited", "amount_cents": 500, "balance_cents": 550}
+    assert outcome.model_dump() == {
+        "status": "credited",
+        "amount_cents": 500,
+        "balance_cents": 550,
+        "welcome_credit_cents": 0,
+    }
     assert world.repository.balances[CUSTOMER] == 550
     payment = world.repository.payments[COELSA]
     assert payment.match_method == "coelsa_id" and payment.receipt_ref == RECEIPT_REF
@@ -210,7 +226,7 @@ async def test_first_transfer_of_a_new_customer_also_grants_the_welcome_credit(w
     world.receipt(bank_receipt())
     world.transfers.add(transfer(e2e_id=COELSA, amount=500))
     outcome = await world.shop.verify_receipt(caller(receipt=RECEIPT_REF))
-    assert outcome.balance_cents == 1500
+    assert (outcome.balance_cents, outcome.welcome_credit_cents) == (1500, 1000)
     assert world.repository.movement_kinds(CUSTOMER) == ["welcome_credit", "payment"]
 
 

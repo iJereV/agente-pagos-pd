@@ -66,9 +66,13 @@ class VerifyReceipt:
         self, customer_id: str, receipt_ref: str, matched: Matched, now: datetime
     ) -> Credited | Rejected:
         transfer = matched.transfer
+        # Set by the last (committed) run of `apply`; a retried transaction runs it again.
+        welcome_granted = 0
 
         def apply(ledger: Ledger) -> RecordedPayment:
+            nonlocal welcome_granted
             ledger.grant_welcome_credit(self.welcome_credit_cents, now)
+            welcome_granted = ledger.welcome_credit_granted_now_cents
             # The credited amount is always the provider's, never the receipt's.
             ledger.credit_payment(transfer.payment_key, transfer.amount_cents, now)
             return RecordedPayment(
@@ -84,7 +88,11 @@ class VerifyReceipt:
             payment = await self.repository.record_payment(customer_id, transfer.payment_key, apply)
         except PaymentAlreadyRecorded:
             return Rejected(status="already_used")
-        return Credited(amount_cents=transfer.amount_cents, balance_cents=payment.balance_cents)
+        return Credited(
+            amount_cents=transfer.amount_cents,
+            balance_cents=payment.balance_cents,
+            welcome_credit_cents=welcome_granted,
+        )
 
     async def _send_to_review(
         self,

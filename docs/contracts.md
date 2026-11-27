@@ -192,10 +192,12 @@ Streamable HTTP MCP endpoint at `/mcp`. Cloud Run IAM (only `sa-agent` may invok
 
 | Tool | Arguments | Requires | Returns (JSON) |
 |---|---|---|---|
-| `get_balance` | none | linked + `auth_fresh` | `{"status": "ok", "balance_cents"}` or `{"status": "auth_required" \| "not_linked"}` |
-| `create_order` | `items: [{"animal": "dog"\|"penguin"\|"capybara", "qty": 1..5}]` | linked + `auth_fresh` | `{"status": "created", "order_id", "total_cents", "balance_cents"}` (balance after the debit) or `{"status": "insufficient_balance", "balance_cents", "total_cents", "payment_needed_cents"}` (`total - balance`) / `auth_required` / `not_linked` / `invalid_items` |
-| `verify_receipt` | none | linked | `{"status": "credited", "amount_cents", "balance_cents"}` (balance after the credit) or `already_used` / `not_found_yet` / `manual_review` / `not_a_receipt` / `no_receipt` / `not_linked` |
+| `get_balance` | none | linked + `auth_fresh` | `{"status": "ok", "balance_cents", "welcome_credit_cents"}` or `{"status": "auth_required" \| "not_linked"}` |
+| `create_order` | `items: [{"animal": "dog"\|"penguin"\|"capybara", "qty": 1..5}]` | linked + `auth_fresh` | `{"status": "created", "order_id", "total_cents", "balance_cents", "welcome_credit_cents"}` (balance after the debit) or `{"status": "insufficient_balance", "balance_cents", "total_cents", "payment_needed_cents", "welcome_credit_cents"}` (`total - balance`; the welcome credit is stored even though the order is refused) / `auth_required` / `not_linked` / `invalid_items` |
+| `verify_receipt` | none | linked | `{"status": "credited", "amount_cents", "balance_cents", "welcome_credit_cents"}` (balance after the credit) or `already_used` / `not_found_yet` / `manual_review` / `not_a_receipt` / `no_receipt` / `not_linked` |
 | `get_order_status` | `order_id: str` | linked | `{"status": "ok", "order_status": "unpaid"\|"partially_paid"\|"paid", "total_cents", "paid_cents"}` or `not_found` (new orders are always `paid`; the other values only appear on orders from the earlier credit model) |
+
+`welcome_credit_cents` is the welcome credit granted by that same call (a new customer's first balance, order or payment), so the agent can announce it exactly once; it is `0` afterwards.
 
 Local agent tools (not in mcp-shop): `get_catalog()`, `request_sign_in()`.
 

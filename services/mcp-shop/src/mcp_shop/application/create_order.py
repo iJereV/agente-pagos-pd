@@ -67,10 +67,17 @@ class CreateOrder:
         try:
             placed = await self.repository.place_order(customer_id, place)
         except InsufficientBalance as short:
+            # The refused order rolled the transaction back, welcome credit included;
+            # store the credit on its own so it is granted (and announced) only once.
+            def welcome(ledger: Ledger) -> None:
+                ledger.grant_welcome_credit(self.welcome_credit_cents, created_at)
+
+            ledger = await self.repository.update_ledger(customer_id, welcome)
             return NotEnoughBalance(
                 balance_cents=short.balance_cents,
                 total_cents=short.total_cents,
                 payment_needed_cents=short.payment_needed_cents,
+                welcome_credit_cents=ledger.welcome_credit_granted_now_cents,
             )
 
         # The order is committed: answer `created` even if the event stays in the outbox,
@@ -81,4 +88,5 @@ class CreateOrder:
             order_id=placed.order.order_id,
             total_cents=placed.order.total_cents,
             balance_cents=placed.balance_cents,
+            welcome_credit_cents=placed.welcome_credit_cents,
         )

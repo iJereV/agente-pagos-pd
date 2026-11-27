@@ -24,6 +24,8 @@ class Rejected(BaseModel):
 class Balance(BaseModel):
     status: Literal["ok"] = "ok"
     balance_cents: int
+    welcome_credit_cents: int = 0
+    """Welcome credit granted by this call (a new customer's first one); 0 otherwise."""
 
 
 class OrderCreated(BaseModel):
@@ -32,6 +34,8 @@ class OrderCreated(BaseModel):
     total_cents: int
     balance_cents: int
     """Balance after the order was debited."""
+    welcome_credit_cents: int = 0
+    """Welcome credit granted by this call (a new customer's first one); 0 otherwise."""
 
 
 class NotEnoughBalance(BaseModel):
@@ -40,6 +44,8 @@ class NotEnoughBalance(BaseModel):
     total_cents: int
     payment_needed_cents: int
     """`total_cents - balance_cents`, computed here so the model never does arithmetic."""
+    welcome_credit_cents: int = 0
+    """Welcome credit granted by this call (a new customer's first one); 0 otherwise."""
 
 
 class Credited(BaseModel):
@@ -47,6 +53,8 @@ class Credited(BaseModel):
     amount_cents: int
     balance_cents: int
     """Balance after the transfer was credited."""
+    welcome_credit_cents: int = 0
+    """Welcome credit granted by this call (a new customer's first one); 0 otherwise."""
 
 
 class OrderStatusView(BaseModel):

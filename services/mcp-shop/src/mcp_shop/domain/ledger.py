@@ -41,6 +41,8 @@ class PlacedOrder:
     order: Order
     balance_cents: int
     """Balance right after the order was debited."""
+    welcome_credit_cents: int = 0
+    """Welcome credit granted together with this order (0 when granted before)."""
 
 
 class InsufficientBalance(Exception):
@@ -71,6 +73,11 @@ class Ledger:
             welcome_movement_id(self.customer_id), MovementKind.WELCOME_CREDIT, amount_cents, at
         )
 
+    @property
+    def welcome_credit_granted_now_cents(self) -> int:
+        """The welcome credit granted since the ledger was loaded, so it can be announced."""
+        return sum(m.amount_cents for m in self.movements if m.kind is MovementKind.WELCOME_CREDIT)
+
     def place_order(
         self,
         *,
@@ -93,7 +100,7 @@ class Ledger:
             paid_cents=total,
             created_at=created_at,
         )
-        return PlacedOrder(order, self.balance_cents)
+        return PlacedOrder(order, self.balance_cents, self.welcome_credit_granted_now_cents)
 
     def credit_payment(self, payment_key: str, amount_cents: int, at: datetime) -> None:
         """Add a verified transfer to the balance."""

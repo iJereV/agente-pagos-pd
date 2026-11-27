@@ -28,4 +28,7 @@ class GetBalance:
             ledger.grant_welcome_credit(self.welcome_credit_cents, now)
 
         ledger = await self.repository.update_ledger(customer_id, welcome)
-        return Balance(balance_cents=ledger.balance_cents)
+        return Balance(
+            balance_cents=ledger.balance_cents,
+            welcome_credit_cents=ledger.welcome_credit_granted_now_cents,
+        )
