@@ -4,10 +4,11 @@
 
 locals {
   secrets = {
-    "meta-app-secret"   = { env = "META_APP_SECRET", accessors = ["sa-wa-webhook"] }
-    "meta-verify-token" = { env = "META_VERIFY_TOKEN", accessors = ["sa-wa-webhook"] }
-    "meta-access-token" = { env = "META_ACCESS_TOKEN", accessors = ["sa-main-worker"] }
-    "mp-access-token"   = { env = "MP_ACCESS_TOKEN", accessors = ["sa-mcp-shop"] }
+    "meta-app-secret"      = { env = "META_APP_SECRET", accessors = ["sa-wa-webhook"] }
+    "meta-verify-token"    = { env = "META_VERIFY_TOKEN", accessors = ["sa-wa-webhook"] }
+    "meta-access-token"    = { env = "META_ACCESS_TOKEN", accessors = ["sa-main-worker"] }
+    "mp-access-token"      = { env = "MP_ACCESS_TOKEN", accessors = ["sa-mcp-shop"] }
+    "cloudflare-api-token" = { env = "CLOUDFLARE_API_TOKEN", accessors = ["sa-image-generator"] }
   }
 
   secret_accessors = merge([

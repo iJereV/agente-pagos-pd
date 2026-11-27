@@ -99,6 +99,7 @@ printf '%s' '<META_APP_SECRET>'   | gcloud secrets versions add meta-app-secret 
 printf '%s' '<META_VERIFY_TOKEN>' | gcloud secrets versions add meta-verify-token --data-file=-
 printf '%s' '<META_ACCESS_TOKEN>' | gcloud secrets versions add meta-access-token --data-file=-
 printf '%s' '<MP_ACCESS_TOKEN>'   | gcloud secrets versions add mp-access-token   --data-file=-
+printf '%s' '<CLOUDFLARE_API_TOKEN>' | gcloud secrets versions add cloudflare-api-token --data-file=-
 ```
 
 Rotating a secret is the same command; Cloud Run picks `latest` on the next revision.
@@ -268,7 +269,9 @@ From [docs/contracts.md](docs/contracts.md). On Cloud Run, Terraform sets all of
 | `MATCH_WINDOW_MINUTES` | mcp-shop | | `120` |
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |
 | `ORDER_READY_TOPIC` | image-generator | | `order-ready` |
-| `IMAGE_MODEL` | image-generator | | `gemini-3.1-flash-lite-image` |
+| `IMAGE_MODEL` | image-generator | | `@cf/black-forest-labs/flux-1-schnell` (Cloudflare Workers AI) |
+| `CLOUDFLARE_ACCOUNT_ID` | image-generator | | Cloudflare account for `@cf/` models (`cloudflare_account_id` in tfvars) |
+| `CLOUDFLARE_API_TOKEN` | image-generator | yes | Workers AI token |
 | `IMAGE_MODEL_LOCATION` | image-generator | | `global` (where the image model is served) |
 | `DAILY_GENERATION_CAP` | image-generator | | `200` |
 | `IDENTITY_API_KEY` | link-web | | browser API key, public by design (created by Terraform) |

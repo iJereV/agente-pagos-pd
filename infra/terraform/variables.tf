@@ -121,9 +121,15 @@ variable "extraction_model_location" {
 }
 
 variable "image_model" {
-  description = "Model used by image-generator."
+  description = "Model used by image-generator: @cf/<publisher>/<model> runs on Cloudflare Workers AI, anything else is a Gemini image model on Vertex AI (needs a paid billing account)."
   type        = string
-  default     = "gemini-3.1-flash-lite-image"
+  default     = "@cf/black-forest-labs/flux-1-schnell"
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare account that runs Workers AI image models. Not a secret; the API token is in Secret Manager (cloudflare-api-token)."
+  type        = string
+  default     = ""
 }
 
 variable "image_model_location" {

@@ -81,13 +81,14 @@ locals {
       max_instances   = 2
       health_path     = null
       env = {
-        MEDIA_BUCKET         = google_storage_bucket.media.name
-        ORDER_READY_TOPIC    = google_pubsub_topic.this["order-ready"].name
-        IMAGE_MODEL          = var.image_model
-        IMAGE_MODEL_LOCATION = var.image_model_location
-        DAILY_GENERATION_CAP = tostring(var.daily_generation_cap)
+        MEDIA_BUCKET          = google_storage_bucket.media.name
+        ORDER_READY_TOPIC     = google_pubsub_topic.this["order-ready"].name
+        IMAGE_MODEL           = var.image_model
+        IMAGE_MODEL_LOCATION  = var.image_model_location
+        DAILY_GENERATION_CAP  = tostring(var.daily_generation_cap)
+        CLOUDFLARE_ACCOUNT_ID = var.cloudflare_account_id
       }
-      secrets = []
+      secrets = ["cloudflare-api-token"]
     }
 
     "link-web" = {

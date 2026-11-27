@@ -1,8 +1,8 @@
 # image-generator
 
 Private Cloud Run service. Pub/Sub pushes `order-created` events here; it draws random
-variants in code, generates one image per ordered unit with a Gemini image model on
-Vertex AI, stores the images and a manifest in the media bucket, and publishes
+variants in code, generates one image per ordered unit with FLUX.1 [schnell] on
+Cloudflare Workers AI (or a Gemini image model on Vertex AI), stores the images and a manifest in the media bucket, and publishes
 `order-ready`. It has no database access and no WhatsApp dependency.
 
 Payload shapes, object paths and environment variables are defined in
@@ -44,10 +44,17 @@ image_generator/
 ## Environment
 
 `GOOGLE_CLOUD_PROJECT`, `MEDIA_BUCKET`, `ORDER_READY_TOPIC`,
-`IMAGE_MODEL` (default `gemini-3.1-flash-lite-image`), `IMAGE_MODEL_LOCATION` (default
+`IMAGE_MODEL` (default `@cf/black-forest-labs/flux-1-schnell`), `IMAGE_MODEL_LOCATION` (default
 `global`), `DAILY_GENERATION_CAP` (default `200`), `PORT` (default `8080`).
 
-The google-genai client is created with `vertexai=True` and
+The model id picks the adapter. `@cf/<publisher>/<model>` runs on Cloudflare Workers AI
+and needs `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` (a token from the "Workers AI"
+template). Its free daily allocation covers a few hundred 4-step images; past it, requests
+fail until 00:00 UTC and Pub/Sub retries them. The image comes back as JPEG and is
+re-encoded as PNG. Any other id is a Gemini image model on Vertex AI, which needs a paid
+billing account.
+
+For Gemini, the google-genai client is created with `vertexai=True` and
 `location=IMAGE_MODEL_LOCATION`, independent of the region the service runs in
 (`GOOGLE_CLOUD_LOCATION`): the image model is served from the `global` endpoint.
 `gemini-2.5-flash-image` still works through `IMAGE_MODEL` until its retirement

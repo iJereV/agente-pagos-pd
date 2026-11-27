@@ -283,7 +283,9 @@ Secrets come from Secret Manager, mounted as env vars by Cloud Run.
 | `SIMULATED_TRANSFERS_PATH` | mcp-shop | | optional fixture for `TRANSFER_VERIFIER=simulated` |
 | `TOKEN_SIGNER` | mcp-shop, link-web | | must match main-worker's mode |
 | `ORDER_READY_TOPIC` | image-generator | | |
-| `IMAGE_MODEL` | image-generator | | default `gemini-3.1-flash-lite-image` (`gemini-2.5-flash-image` retires 2027-03-15) |
+| `IMAGE_MODEL` | image-generator | | default `@cf/black-forest-labs/flux-1-schnell` (Cloudflare Workers AI); any id without `@cf/` is a Gemini image model on Vertex AI |
+| `CLOUDFLARE_ACCOUNT_ID` | image-generator | | Cloudflare account for `@cf/` models |
+| `CLOUDFLARE_API_TOKEN` | image-generator | yes | Workers AI token, for `@cf/` models |
 | `IMAGE_MODEL_LOCATION` | image-generator | | default `global` (where the image model is served) |
 | `DAILY_GENERATION_CAP` | image-generator | | default `200` images per day |
 | `IDENTITY_API_KEY` | link-web | | Identity Platform web API key (public by design) |
