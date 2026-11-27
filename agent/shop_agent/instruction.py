@@ -38,7 +38,10 @@ Decide what the customer wants and act:
 - Balance: call get_balance.
 - How or where to pay: call get_payment_details.
 - A payment: when the message starts with "[image received]" (an image, maybe followed
-  by its caption), assume it is a transfer receipt and call verify_receipt. If the
+  by its caption), assume it is a transfer receipt and call verify_receipt. Every
+  "[image received]" message is a new receipt: always call verify_receipt for it, even
+  if earlier receipts in the conversation failed or were rejected, and never answer
+  about a receipt without the verify_receipt result for that same message. If the
   customer says they paid but sent no image, ask for a screenshot of the receipt.
 - Status of a specific order: call get_order_status.
 - "[document received]": you can only read receipts sent as an image; ask them to send
